@@ -1,0 +1,64 @@
+{
+  "frames": [
+    {
+      "start": "2026-09-01T00:00:00Z",
+      "end": "2026-09-01T01:00:00Z",
+      "metrics": {
+        "meter_values": {
+          "energy_active_import_register": 1.5,
+          "energy_active_export_register": 0.0,
+          "energy_balance": 1.5
+        },
+        "cost": {
+          "var_dist_cost_net": 0.25,
+          "fix_dist_cost_net": 0.07,
+          "energy_cost_net": 0.75,
+          "service_cost_net": 0.12,
+          "excise": 0.0075
+        }
+      }
+    },
+    {
+      "start": "2026-09-01T01:00:00Z",
+      "end": "2026-09-01T02:00:00Z",
+      "metrics": {
+        "meter_values": {
+          "energy_active_import_register": 0.5,
+          "energy_active_export_register": 0.0,
+          "energy_balance": 0.5
+        },
+        "cost": {
+          "var_dist_cost_net": null,
+          "fix_dist_cost_net": null,
+          "energy_cost_net": null,
+          "service_cost_net": null,
+          "excise": null
+        }
+      }
+    },
+    {
+      "start": "2026-09-01T02:00:00Z",
+      "end": "2026-09-01T03:00:00Z",
+      "metrics": {}
+    },
+    {
+      "start": "2026-09-01T03:00:00Z",
+      "end": "2026-09-01T04:00:00Z",
+      "metrics": {
+        "meter_values": {
+          "energy_active_import_register": null,
+          "energy_active_export_register": null,
+          "energy_balance": null
+        },
+        "cost": {
+          "var_dist_cost_net": 0.1,
+          "fix_dist_cost_net": 0.07,
+          "energy_cost_net": 0.2,
+          "service_cost_net": 0.08,
+          "excise": 0.005
+        }
+      }
+    }
+  ],
+  "summary": {}
+}

@@ -1,0 +1,198 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Porównanie taryf",
+        "description": "Podaj klucz API Pstryk i parametry swojej instalacji. Klucz jest sprawdzany jednym zapytaniem o dane z 1 doby.",
+        "data": {
+          "api_key": "Klucz API Pstryk",
+          "uklad": "Układ przyłącza",
+          "preset": "Preset stawek dystrybucyjnych",
+          "taryfa": "Obecna taryfa dystrybucyjna",
+          "tanie_g12": "Tanie godziny G12"
+        },
+        "data_description": {
+          "api_key": "Dane licznika pobierane są z nieoficjalnego endpointu Pstryk; klucz trafia tylko do Pstryk.",
+          "uklad": "3f = trójfazowy, 1f = jednofazowy. Wpływa na stały składnik opłaty dystrybucyjnej.",
+          "preset": "Zestaw stawek dystrybucyjnych. Na razie dostępne tylko Enea Operator 2026.",
+          "taryfa": "Taryfa, którą masz teraz. Wszystkie „różnice względem obecnej” liczone są względem Pstryk + ta taryfa.",
+          "tanie_g12": "Pełne godziny, od których zaczyna się tania godzina G12 (22 = 22:00–23:00). Domyślnie 22–6 i 13–15. Dotyczy tylko G12."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponowna autoryzacja",
+        "description": "Pstryk odrzucił zapisany klucz API. Podaj aktualny klucz.",
+        "data": {
+          "api_key": "Klucz API Pstryk"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Pstryk odrzucił klucz API.",
+      "cannot_connect": "Nie udało się połączyć z API Pstryk. Spróbuj ponownie później.",
+      "endpoint_changed": "Endpoint danych Pstryk odrzucił zapytanie (400/404). Nieoficjalny endpoint mógł się zmienić.",
+      "tanie_g12_puste": "Wybierz co najmniej jedną tanią godzinę G12."
+    },
+    "abort": {
+      "already_configured": "Ten klucz API jest już skonfigurowany.",
+      "reauth_successful": "Klucz API został zaktualizowany."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje",
+        "description": "Wybierz, co chcesz zmienić.",
+        "menu_options": {
+          "stawki": "VAT i stawki dystrybucyjne",
+          "tarcza": "Tarcza Pstryk",
+          "cennik": "Własny cennik sprzedawcy"
+        }
+      },
+      "stawki": {
+        "title": "VAT i stawki dystrybucyjne",
+        "description": "Stawki netto. Zapisanie formularza utrwala WSZYSTKIE podane wartości: późniejsze poprawki presetu (np. stawki na 2027) nie trafią do Ciebie, dopóki ich tu nie zmienisz lub nie usuniesz i nie dodasz integracji ponownie.",
+        "data": {
+          "vat": "VAT",
+          "G11_calodobowa": "G11, całodobowo (zł/kWh)",
+          "G12_dzien": "G12, strefa dzienna (zł/kWh)",
+          "G12_noc": "G12, strefa nocna (zł/kWh)",
+          "G12w_szczyt": "G12w, szczyt (zł/kWh)",
+          "G12w_pozaszczyt": "G12w, pozaszczyt (zł/kWh)",
+          "G13active_ograniczanie": "G13active, ograniczanie (zł/kWh)",
+          "G13active_pozostale": "G13active, pozostałe (zł/kWh)",
+          "G13active_pobor": "G13active, pobór (zł/kWh)",
+          "ssv_G11": "G11, składnik stały (zł/mc)",
+          "ssv_G12": "G12, składnik stały (zł/mc)",
+          "ssv_G12w": "G12w, składnik stały (zł/mc)",
+          "ssv_G13active": "G13active, składnik stały (zł/mc)",
+          "sosj": "Opłata jakościowa (zł/kWh)",
+          "oze": "Opłata OZE (zł/kWh)",
+          "kog": "Opłata kogeneracyjna (zł/kWh)",
+          "abonament": "Opłata abonamentowa (zł/mc)",
+          "moc": "Opłata mocowa (zł/mc)"
+        },
+        "data_description": {
+          "vat": "Ułamek, np. 0,23 dla 23%.",
+          "ssv_G11": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
+          "ssv_G12": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
+          "ssv_G12w": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
+          "ssv_G13active": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
+          "moc": "Zależy od rocznego zużycia (próg 2800 kWh/rok); wpisz wartość właściwą dla siebie."
+        }
+      },
+      "tarcza": {
+        "title": "Tarcza Pstryk",
+        "description": "Parametry rabatu, osobno dla każdego roku. Zapisanie formularza utrwala WSZYSTKIE wartości obu lat: późniejsze poprawki presetu (np. zweryfikowana Tarcza 2027) nie trafią do Ciebie, dopóki ich tu nie zmienisz lub nie usuniesz i nie dodasz integracji ponownie. Preset 2027 jest niezweryfikowany.",
+        "data": {
+          "2026_limit": "2026, limit średniej ceny (zł/kWh)",
+          "2026_podstawa": "2026, podstawa limitu",
+          "2026_obejmuje_obsluge": "2026, wliczaj opłatę handlową",
+          "2026_od": "2026, obowiązuje od",
+          "2026_do": "2026, obowiązuje do",
+          "2027_limit": "2027, limit średniej ceny (zł/kWh)",
+          "2027_podstawa": "2027, podstawa limitu",
+          "2027_obejmuje_obsluge": "2027, wliczaj opłatę handlową",
+          "2027_od": "2027, obowiązuje od",
+          "2027_do": "2027, obowiązuje do"
+        },
+        "data_description": {
+          "2026_limit": "Rabat to nadwyżka średniej miesięcznej ceny ponad limit, razy zużycie w miesiącu.",
+          "2026_podstawa": "brutto: średnia liczona z VAT, limit brutto. netto: średnia bez VAT, limit netto.",
+          "2026_obejmuje_obsluge": "Czy do średniej wlicza się opłata handlowa (obsługa), poza ceną energii.",
+          "2026_od": "Poza przedziałem dat rabat wynosi 0 i pojawia się ostrzeżenie brak_tarczy.",
+          "2026_do": "Poza przedziałem dat rabat wynosi 0 i pojawia się ostrzeżenie brak_tarczy.",
+          "2027_limit": "Rabat to nadwyżka średniej miesięcznej ceny ponad limit, razy zużycie w miesiącu.",
+          "2027_podstawa": "brutto: średnia liczona z VAT, limit brutto. netto: średnia bez VAT, limit netto.",
+          "2027_obejmuje_obsluge": "Czy do średniej wlicza się opłata handlowa (obsługa), poza ceną energii.",
+          "2027_od": "Poza przedziałem dat rabat wynosi 0 i pojawia się ostrzeżenie brak_tarczy.",
+          "2027_do": "Poza przedziałem dat rabat wynosi 0 i pojawia się ostrzeżenie brak_tarczy."
+        }
+      },
+      "cennik": {
+        "title": "Własny cennik sprzedawcy",
+        "description": "Porównaj Pstryk z umową kompleksową innego sprzedawcy. Ceny netto za kWh w strefach taryfy. Taryfa bierze udział w porównaniu tylko wtedy, gdy wypełnisz wszystkie jej strefy. Pusta nazwa usuwa cennik.",
+        "data": {
+          "nazwa": "Nazwa sprzedawcy",
+          "oplata_mc": "Opłata handlowa (zł/mc netto)",
+          "akcyza": "Akcyza (zł/kWh)",
+          "G11_calodobowa": "G11, całodobowo: cena energii (zł/kWh netto)",
+          "G12_dzien": "G12, dzień: cena energii (zł/kWh netto)",
+          "G12_noc": "G12, noc: cena energii (zł/kWh netto)",
+          "G12w_szczyt": "G12w, szczyt: cena energii (zł/kWh netto)",
+          "G12w_pozaszczyt": "G12w, pozaszczyt: cena energii (zł/kWh netto)",
+          "G13active_ograniczanie": "G13active, ograniczanie: cena energii (zł/kWh netto)",
+          "G13active_pozostale": "G13active, pozostałe: cena energii (zł/kWh netto)",
+          "G13active_pobor": "G13active, pobór: cena energii (zł/kWh netto)"
+        },
+        "data_description": {
+          "nazwa": "Wyświetlana w nazwach encji, np. „Enea + G12”.",
+          "akcyza": "Doliczana poza VAT. Domyślnie 0,005 zł/kWh."
+        }
+      }
+    },
+    "error": {
+      "cennik_niekompletny": "Wypełnij wszystkie strefy każdej taryfy, w której zaczęto wpisywać ceny, oraz co najmniej jedną taryfę, jeśli podano nazwę."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "razem": {
+        "name": "{scenariusz} — razem"
+      },
+      "roznica": {
+        "name": "{scenariusz} — różnica względem obecnej"
+      },
+      "kwh_tanie": {
+        "name": "kWh w tanich godzinach"
+      },
+      "kwh_drogie": {
+        "name": "kWh w drogich godzinach"
+      }
+    },
+    "select": {
+      "okres": {
+        "name": "Okres",
+        "state": {
+          "dzien": "Dzień",
+          "miesiac": "Miesiąc",
+          "rok": "Rok",
+          "zakres": "Zakres własny"
+        }
+      }
+    },
+    "date": {
+      "data": {
+        "name": "Data"
+      },
+      "koniec": {
+        "name": "Koniec zakresu"
+      }
+    }
+  },
+  "selector": {
+    "uklad": {
+      "options": {
+        "3f": "3-fazowy",
+        "1f": "1-fazowy"
+      }
+    },
+    "preset": {
+      "options": {
+        "enea_2026": "Enea Operator 2026"
+      }
+    },
+    "podstawa": {
+      "options": {
+        "brutto": "brutto (z VAT)",
+        "netto": "netto (bez VAT)"
+      }
+    }
+  },
+  "issues": {
+    "endpoint_zmieniony": {
+      "title": "Endpoint Pstryk odrzuca zapytania",
+      "description": "Pstryk odpowiedział błędem 400 lub 404 na zapytanie o dane licznika. Endpoint jest nieoficjalny i mógł się zmienić. Integracja nadal liczy z danych zapisanych lokalnie, ale nie pobiera nowych godzin. Sprawdź, czy jest nowsza wersja integracji. Ten problem zniknie po pierwszym udanym pobraniu danych."
+    }
+  }
+}

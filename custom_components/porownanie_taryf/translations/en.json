@@ -1,0 +1,198 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tariff comparison",
+        "description": "Enter your Pstryk API key and your installation settings. The key is checked with a single request for 1 day of data.",
+        "data": {
+          "api_key": "Pstryk API key",
+          "uklad": "Connection type",
+          "preset": "Distribution rates preset",
+          "taryfa": "Current distribution tariff",
+          "tanie_g12": "G12 cheap hours"
+        },
+        "data_description": {
+          "api_key": "Meter data comes from an unofficial Pstryk endpoint; the key is only sent to Pstryk.",
+          "uklad": "3f = three-phase, 1f = single-phase. Affects the fixed component of the distribution fee.",
+          "preset": "Set of distribution rates. Only Enea Operator 2026 is available for now.",
+          "taryfa": "The tariff you are on now. Every \"difference vs current\" is measured against Pstryk + this tariff.",
+          "tanie_g12": "Full hours at which a cheap G12 hour starts (22 = 22:00–23:00). Default 22–6 and 13–15. Applies to G12 only."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authentication",
+        "description": "Pstryk rejected the stored API key. Enter a valid key.",
+        "data": {
+          "api_key": "Pstryk API key"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Pstryk rejected the API key.",
+      "cannot_connect": "Could not connect to the Pstryk API. Try again later.",
+      "endpoint_changed": "The Pstryk data endpoint rejected the request (400/404). The unofficial endpoint may have changed.",
+      "tanie_g12_puste": "Select at least one cheap G12 hour."
+    },
+    "abort": {
+      "already_configured": "This API key is already configured.",
+      "reauth_successful": "The API key has been updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "Choose what you want to change.",
+        "menu_options": {
+          "stawki": "VAT and distribution rates",
+          "tarcza": "Pstryk Shield (Tarcza)",
+          "cennik": "Own seller price list"
+        }
+      },
+      "stawki": {
+        "title": "VAT and distribution rates",
+        "description": "Net rates. Saving this form persists ALL values shown: later preset corrections (e.g. 2027 rates) will not reach you until you edit them here or remove and re-add the integration.",
+        "data": {
+          "vat": "VAT",
+          "G11_calodobowa": "G11, all day (PLN/kWh)",
+          "G12_dzien": "G12, day zone (PLN/kWh)",
+          "G12_noc": "G12, night zone (PLN/kWh)",
+          "G12w_szczyt": "G12w, peak (PLN/kWh)",
+          "G12w_pozaszczyt": "G12w, off-peak (PLN/kWh)",
+          "G13active_ograniczanie": "G13active, ograniczanie zone (PLN/kWh)",
+          "G13active_pozostale": "G13active, pozostałe zone (PLN/kWh)",
+          "G13active_pobor": "G13active, pobór zone (PLN/kWh)",
+          "ssv_G11": "G11, fixed component (PLN/month)",
+          "ssv_G12": "G12, fixed component (PLN/month)",
+          "ssv_G12w": "G12w, fixed component (PLN/month)",
+          "ssv_G13active": "G13active, fixed component (PLN/month)",
+          "sosj": "Quality fee (PLN/kWh)",
+          "oze": "Renewables fee (PLN/kWh)",
+          "kog": "Cogeneration fee (PLN/kWh)",
+          "abonament": "Subscription fee (PLN/month)",
+          "moc": "Capacity fee (PLN/month)"
+        },
+        "data_description": {
+          "vat": "A fraction, e.g. 0.23 for 23%.",
+          "ssv_G11": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
+          "ssv_G12": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
+          "ssv_G12w": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
+          "ssv_G13active": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
+          "moc": "Depends on yearly consumption (2800 kWh/year threshold); enter the value that applies to you."
+        }
+      },
+      "tarcza": {
+        "title": "Pstryk Shield (Tarcza)",
+        "description": "Rebate parameters, per year. Saving this form persists ALL values for both years: later preset corrections (e.g. a verified 2027 Shield) will not reach you until you edit them here or remove and re-add the integration. The 2027 preset is unverified.",
+        "data": {
+          "2026_limit": "2026, average price limit (PLN/kWh)",
+          "2026_podstawa": "2026, limit basis",
+          "2026_obejmuje_obsluge": "2026, include the trading fee",
+          "2026_od": "2026, valid from",
+          "2026_do": "2026, valid to",
+          "2027_limit": "2027, average price limit (PLN/kWh)",
+          "2027_podstawa": "2027, limit basis",
+          "2027_obejmuje_obsluge": "2027, include the trading fee",
+          "2027_od": "2027, valid from",
+          "2027_do": "2027, valid to"
+        },
+        "data_description": {
+          "2026_limit": "The rebate is the amount by which the monthly average price exceeds the limit, times the month's consumption.",
+          "2026_podstawa": "brutto: the average includes VAT and the limit is gross. netto: the average excludes VAT and the limit is net.",
+          "2026_obejmuje_obsluge": "Whether the trading (service) fee counts towards the average, besides the energy price.",
+          "2026_od": "Outside the date range the rebate is 0 and a brak_tarczy warning appears.",
+          "2026_do": "Outside the date range the rebate is 0 and a brak_tarczy warning appears.",
+          "2027_limit": "The rebate is the amount by which the monthly average price exceeds the limit, times the month's consumption.",
+          "2027_podstawa": "brutto: the average includes VAT and the limit is gross. netto: the average excludes VAT and the limit is net.",
+          "2027_obejmuje_obsluge": "Whether the trading (service) fee counts towards the average, besides the energy price.",
+          "2027_od": "Outside the date range the rebate is 0 and a brak_tarczy warning appears.",
+          "2027_do": "Outside the date range the rebate is 0 and a brak_tarczy warning appears."
+        }
+      },
+      "cennik": {
+        "title": "Own seller price list",
+        "description": "Compare Pstryk with a comprehensive contract from another seller. Net prices per kWh in the tariff zones. A tariff takes part in the comparison only if you fill in all of its zones. An empty name removes the price list.",
+        "data": {
+          "nazwa": "Seller name",
+          "oplata_mc": "Trading fee (PLN/month net)",
+          "akcyza": "Excise duty (PLN/kWh)",
+          "G11_calodobowa": "G11, all day: energy price (PLN/kWh net)",
+          "G12_dzien": "G12, day: energy price (PLN/kWh net)",
+          "G12_noc": "G12, night: energy price (PLN/kWh net)",
+          "G12w_szczyt": "G12w, peak: energy price (PLN/kWh net)",
+          "G12w_pozaszczyt": "G12w, off-peak: energy price (PLN/kWh net)",
+          "G13active_ograniczanie": "G13active, ograniczanie: energy price (PLN/kWh net)",
+          "G13active_pozostale": "G13active, pozostałe: energy price (PLN/kWh net)",
+          "G13active_pobor": "G13active, pobór: energy price (PLN/kWh net)"
+        },
+        "data_description": {
+          "nazwa": "Shown in entity names, e.g. \"Enea + G12\".",
+          "akcyza": "Added on top of VAT. Default 0.005 PLN/kWh."
+        }
+      }
+    },
+    "error": {
+      "cennik_niekompletny": "Fill in all zones of every tariff you started entering prices for, and at least one tariff if a name is given."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "razem": {
+        "name": "{scenariusz} — total"
+      },
+      "roznica": {
+        "name": "{scenariusz} — difference vs current"
+      },
+      "kwh_tanie": {
+        "name": "kWh in cheap hours"
+      },
+      "kwh_drogie": {
+        "name": "kWh in expensive hours"
+      }
+    },
+    "select": {
+      "okres": {
+        "name": "Period",
+        "state": {
+          "dzien": "Day",
+          "miesiac": "Month",
+          "rok": "Year",
+          "zakres": "Custom range"
+        }
+      }
+    },
+    "date": {
+      "data": {
+        "name": "Date"
+      },
+      "koniec": {
+        "name": "Range end"
+      }
+    }
+  },
+  "selector": {
+    "uklad": {
+      "options": {
+        "3f": "3-phase",
+        "1f": "1-phase"
+      }
+    },
+    "preset": {
+      "options": {
+        "enea_2026": "Enea Operator 2026"
+      }
+    },
+    "podstawa": {
+      "options": {
+        "brutto": "gross (incl. VAT)",
+        "netto": "net (excl. VAT)"
+      }
+    }
+  },
+  "issues": {
+    "endpoint_zmieniony": {
+      "title": "Pstryk endpoint rejects requests",
+      "description": "Pstryk answered a meter data request with error 400 or 404. The endpoint is unofficial and may have changed. The integration keeps calculating from locally stored data but cannot fetch new hours. Check whether a newer version of the integration is available. This issue disappears after the next successful fetch."
+    }
+  }
+}

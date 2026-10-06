@@ -1,0 +1,13 @@
+{
+  "domain": "porownanie_taryf",
+  "name": "Porównanie taryf",
+  "codeowners": ["@sharezz1"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "panel_custom"],
+  "documentation": "https://github.com/sharezz1/ha-porownanie-taryf",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/sharezz1/ha-porownanie-taryf",
+  "requirements": [],
+  "version": "0.3.2"
+}
