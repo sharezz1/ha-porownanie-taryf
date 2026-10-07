@@ -90,10 +90,11 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "G12": {"dzien": 0.5736, "noc": 0.3365},
         "G12w": {"szczyt": 0.6464, "pozaszczyt": 0.3459},
         "G12sezON": {"pozostale": 0.5841, "zalecana": 0.3465},
+        "G13active": {"ograniczanie": 0.6435, "pozostale": 0.4950, "pobor": 0.2772},
     }, oferta="EneoPewność", uwagi=(
-        "Cena energii i opłata handlowa stałe przez 36 miesięcy; opłata 15,94 zł/mies. przy e-fakturze "
-        "(20,01 zł przy fakturze papierowej), obejmuje usługę „Elektryk”.",
-        "Przy zmianie sprzedawcy grupa taryfowa musi być taka jak dotychczasowa — na G12sezON najpierw zmiana grupy u operatora.",
+        "Cena energii i opłata handlowa stałe przez 36 miesięcy; opłata 15,94 zł/mies. netto przy e-fakturze "
+        "(20,01 zł netto przy fakturze papierowej), obejmuje usługę „Elektryk”.",
+        "Przy zmianie sprzedawcy grupa taryfowa musi być taka jak dotychczasowa — na inną grupę (np. G12sezON) najpierw zmiana grupy u operatora.",
         "Cennik dla umów zawieranych od 1.10 do 31.12.2026.",
     )),
 }

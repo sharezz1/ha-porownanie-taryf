@@ -42,7 +42,8 @@ def test_katalog_sprzedawcow():
     assert (wybor.nazwa, wybor.oferta, wybor.oplata_mc) == ("Enea", "prawo wyboru", 10.49) and len(wybor.uwagi) == 1
     assert (pewnosc.nazwa, pewnosc.oferta, pewnosc.oplata_mc, len(pewnosc.uwagi)) == ("Enea", "EneoPewność", 15.94, 3)
     assert pewnosc.ceny["G12sezON"] == {"pozostale": 0.5841, "zalecana": 0.3465}
-    assert "G12sezON" not in wybor.ceny
+    assert pewnosc.ceny["G13active"] == {"ograniczanie": 0.6435, "pozostale": 0.4950, "pobor": 0.2772}
+    assert "G12sezON" not in wybor.ceny and "G13active" not in wybor.ceny
 
 
 def test_zbuduj_konfiguracje_nadpisania():

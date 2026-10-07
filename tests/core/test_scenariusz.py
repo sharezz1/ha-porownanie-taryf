@@ -42,6 +42,7 @@ def test_klucze_i_etykiety():
         "kompleksowa_enea_2026_wybor_G11", "kompleksowa_enea_2026_wybor_G12", "kompleksowa_enea_2026_wybor_G12w",
         "kompleksowa_enea_eneopewnosc_2026_G11", "kompleksowa_enea_eneopewnosc_2026_G12",
         "kompleksowa_enea_eneopewnosc_2026_G12w", "kompleksowa_enea_eneopewnosc_2026_G12sezON",
+        "kompleksowa_enea_eneopewnosc_2026_G13active",
         "cennik_G12"]
     assert etykieta("pstryk_G12", K) == "Pstryk + G12"
     assert etykieta("kompleksowa_enea_2026_wybor_G12", K) == "Enea prawo wyboru + G12"
@@ -82,9 +83,9 @@ def test_policz_wrzesien():
     assert kg12.razem == pytest.approx(714.32004) and kg12.tarcza == 0.0 and kg12.sprzedaz_przed == pytest.approx(446.3301)
     assert kg11.razem == pytest.approx(763.26666) and kg12w.razem == pytest.approx(713.89569)
     assert "kompleksowa_enea_2026_wybor_G12sezON" not in w.scenariusze
-    assert not any(k.endswith("G13active") for k in w.scenariusze if k.startswith("kompleksowa"))
+    assert "kompleksowa_enea_2026_wybor_G13active" not in w.scenariusze
     for t, brutto, razem in (("G11", 457.9782, 761.11416), ("G12", 440.09646, 708.0864),
-                             ("G12w", 447.90819, 701.67318), ("G12sezON", 449.21076, 717.2007)):
+                             ("G12w", 447.90819, 701.67318), ("G12sezON", 449.21076, 717.2007), ("G13active", 459.07413, 748.22991)):
         e = w.scenariusze[f"kompleksowa_enea_eneopewnosc_2026_{t}"]
         assert e.sprzedaz_przed == pytest.approx(brutto) and e.razem == pytest.approx(razem) and e.tarcza == 0.0, t
 

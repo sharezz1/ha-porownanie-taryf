@@ -203,7 +203,7 @@ const T = {
   sekcja1: "1. Prąd z Pstryka + dystrybucja Enea Operator",
   sekcja2: (sprzedawca) => (sprzedawca ? `2. Umowa kompleksowa ${sprzedawca} (prąd i dystrybucja od ${DOPELNIACZ[sprzedawca]})` : "2. Umowa kompleksowa"),
   prad: "prąd po tarczy", pradK: "prąd", dystr: "dystrybucja", obecna: "obecna",
-  brakTaryfy: (kto, taryfy) => `${kto} nie oferuje ${taryfy.join(" ani ")} gospodarstwom domowym.`,
+  brakTaryfy: (oferta, taryfy) => `Oferta „${oferta}” nie obejmuje ${taryfy.join(" ani ")}.`,
   drozej: "drożej niż obecna", taniej: "taniej niż obecna",
   tarcza: "Tarcza Pstryk", zuzycie: "Zużycie", tanie: "Tanie godziny", drogie: "Drogie godziny", dane: "Dane",
   podTarcza: "rabat już odjęty od kosztu", podZuzycie: "energia pobrana z sieci", podStrefy: "w obecnej taryfie",
@@ -336,8 +336,8 @@ export function htmlWynikow(dane) {
   const doOfert = k.some((s) => s.oferta);
   const etykietaK = (s) =>
     s.oferta && sprzedawcy.size === 1 ? `${s.oferta} · ${s.taryfa}` : !doOfert && naTaryfy(k, jeden) ? s.taryfa : s.etykieta;
-  const adnotacje = dane.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(`${b.sprzedawca} (${b.oferta})`, b.taryfy))}</p>`).join("");
-  const uwagi = dane.uwagi.flatMap((u) => u.uwagi).length ? dane.uwagi.map((u) => u.uwagi.map((z) => `<p class="adnotacja">${esc(z)}</p>`).join("")).join("") : "";
+  const adnotacje = dane.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(b.oferta, b.taryfy))}</p>`).join("");
+  const uwagi = dane.uwagi.map(({ oferta, uwagi }) => `<p class="adnotacja"><strong>${esc(oferta)}:</strong> ${uwagi.map(esc).join(" ")}</p>`).join("");
   const sekcja2 = k.length
     ? `<section class="karta">
       <h3>${esc(T.sekcja2(jeden ? k[0].sprzedawca : null))}</h3>

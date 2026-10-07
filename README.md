@@ -24,6 +24,7 @@ Przeczytaj, zanim zaufasz wynikowi.
 - **Stawki dystrybucyjne zmieniają się co roku.** Nowa taryfa operatora jest publikowana w grudniu. Preset jest na rok 2026; dla odczytów z innego roku pojawia się ostrzeżenie `stawki_spoza_roku:<rok>`. Po zmianie taryfy zaktualizuj stawki.
 - **Zapis opcji „VAT i stawki” oraz „Tarcza” utrwala WSZYSTKIE wartości z formularza.** Późniejsze poprawki presetu w nowej wersji integracji (np. stawki na 2027 czy zweryfikowana Tarcza 2027) nie trafią do Ciebie, dopóki nie zmienisz tych wartości ręcznie albo nie usuniesz i nie dodasz integracji od nowa.
 - **Zużycie jest stałe.** Wynik zakłada, że po zmianie taryfy lub sprzedawcy zużywasz prąd w tych samych godzinach. To często nieprawda: jeśli na przykład ładujesz samochód w godzinach 13–15, bo opłaca się to przy G12 i cenach dynamicznych, u sprzedawcy ze stałą ceną albo w innej taryfie optymalny wzorzec byłby inny. Integracja tego nie modeluje.
+- **Zegar strefowy licznika.** Taryfa operatora (pkt 2.2.12) dopuszcza liczniki, których zegar stref pozostaje przez cały rok na czasie zimowym (CET), jeśli licznik sam się nie przestawia. Integracja liczy strefy wg zegara ściennego (czas lokalny). Jeśli Twój licznik trzyma czas zimowy, latem rzeczywiste strefy są przesunięte o godzinę (np. dla G12sezON 5–7 i 10–18). Dotyczy to wszystkich taryf strefowych.
 - **Pojedynczy miesiąc myli.** Taryfa droższa w jednym miesiącu bywa tańsza w skali roku (różnice sezonowe). **Decyzję o taryfie opieraj na okresie co najmniej 12 miesięcy** (okres „Rok” albo własny zakres).
 - To narzędzie orientacyjne. Wynik nie jest poradą ani gwarancją; porównaj go z fakturami.
 
@@ -66,7 +67,7 @@ G11 ma jedną strefę całodobową (całe zużycie liczy się wtedy jako „tani
 | kwiecień–wrzesień | 4–6 oraz 9–17 |
 | październik–marzec | 22–6 oraz 11–13 |
 
-Godziny liczone są wg zegara ściennego (Europe/Warsaw), więc po zmianie czasu strefa przesuwa się razem z zegarem. Stawki sieciowe G12sezON są takie same jak G12 (zalecana = jak noc G12); różnią się wyłącznie godziny stref. Zmiana grupy taryfowej u operatora jest ograniczona (zasadniczo raz na 12 miesięcy), więc sprawdź warunki u swojego OSD, zanim ją wybierzesz.
+Godziny liczone są wg zegara ściennego (Europe/Warsaw), czyli lokalnego czasu urzędowego. Stawki sieciowe G12sezON w presecie Enea są takie same jak G12 (zalecana = jak noc G12); różnią się wyłącznie godziny stref. To osobne wartości: zmiana stawek G12 w opcjach nie zmienia stawek G12sezON (i odwrotnie), więc przy innych stawkach popraw obie taryfy. Zmiana grupy taryfowej u operatora jest ograniczona (zasadniczo raz na 12 miesięcy), więc sprawdź warunki u swojego OSD, zanim ją wybierzesz.
 
 **Opcje** (Ustawienia → Urządzenia i usługi → Porównanie taryf → Konfiguruj), zapis każdego kroku przeładowuje integrację:
 
@@ -96,7 +97,7 @@ Zmiana okresu przelicza wynik z danych zapisanych lokalnie, **bez zapytań do AP
 | `<scenariusz> — różnica względem obecnej` | `razem` scenariusza minus `razem` obecnego. **Dodatnia = drożej niż obecnie**, ujemna = taniej. Nie ma jej dla scenariusza obecnego. |
 | `kWh w tanich godzinach` / `kWh w drogich godzinach` | Zużycie w tanich i w pozostałych strefach obecnej taryfy (kWh). |
 
-Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, wbudowane oferty kompleksowe *Enea prawo wyboru + G11 / G12 / G12w* i *Enea EneoPewność + G11 / G12 / G12w / G12sezON* (patrz niżej) oraz, jeśli zdefiniujesz własny cennik, `<nazwa cennika> + <taryfa>` dla taryf z kompletem cen.
+Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, wbudowane oferty kompleksowe *Enea prawo wyboru + G11 / G12 / G12w* i *Enea EneoPewność + G11 / G12 / G12w / G12sezON / G13active* (patrz niżej) oraz, jeśli zdefiniujesz własny cennik, `<nazwa cennika> + <taryfa>` dla taryf z kompletem cen.
 
 **Atrybuty sensorów** (nazwy bez polskich znaków, wygodne w szablonach):
 
@@ -149,16 +150,17 @@ Obok scenariuszy Pstryk integracja ma wbudowane dwie oferty kompleksowe **Enea**
 | G12 | dzień 0,5736 · noc 0,3365 |
 | G12w | szczyt 0,6464 · pozaszczyt 0,3459 |
 | G12sezON | pozostałe godziny 0,5841 · zalecany pobór 0,3465 |
+| G13active | ograniczanie 0,6435 · pozostałe 0,4950 · pobór 0,2772 |
 
-- **Opłata i czas trwania:** cena energii i opłata handlowa są stałe przez **36 miesięcy**. Opłata 15,94 zł/mc dotyczy e-faktury (przy fakturze papierowej jest wyższa: 20,01 zł) i obejmuje usługę „Elektryk”, której nie można odłączyć od oferty.
-- **Warunek grupy taryfowej:** przy zawarciu umowy w związku ze zmianą sprzedawcy grupa taryfowa dystrybucji rozliczana bezpośrednio przed zmianą musi być taka sama jak grupa wybrana w nowej umowie. Jeśli dziś masz G12, a chcesz G12sezON, najpierw zmień grupę u operatora; samą zmianą sprzedawcy się nie da.
-- **Ważność cennika:** obowiązuje dla umów zawieranych w IV kwartale 2026. Nie obejmuje G13active.
+- **Opłata i czas trwania:** cena energii i opłata handlowa są stałe przez **36 miesięcy**. Opłata 15,94 zł/mc netto dotyczy e-faktury (przy fakturze papierowej jest wyższa: 20,01 zł netto) i obejmuje usługę „Elektryk”, której nie można odłączyć od oferty.
+- **Warunek grupy taryfowej:** przy zawarciu umowy w związku ze zmianą sprzedawcy grupa taryfowa dystrybucji rozliczana bezpośrednio przed zmianą musi być taka sama jak grupa wybrana w nowej umowie. Jeśli dziś masz G12, a chcesz inną grupę (np. G12sezON), najpierw zmień grupę u operatora; samą zmianą sprzedawcy się nie da.
+- **Ważność cennika:** obowiązuje dla umów zawieranych od 1.10 do 31.12.2026, ceny są stałe przez 36 miesięcy.
 - **Źródło:** Cennik oferty EneoPewność 36 miesięcy (nr EP36010330_G) i Regulamin oferty z 1.10.2026, `https://www.enea.pl/eneopewnosc`. To oferta rynkowa; przed decyzją potwierdź warunki w Enei.
 
 Pozostałe informacje:
 
 - Scenariusze Enei mają `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, a oferty rozróżnia atrybut `oferta` i klucz scenariusza. Własny cennik ma tę samą `grupę`, `sprzedawca` to jego nazwa, a `oferta` jest pusta; wszystkie mogą występować jednocześnie.
-- Wybór innego sprzedawcy z katalogu nie ma jeszcze interfejsu; lista sprzedawców zostanie rozszerzona w przyszłych wersjach. Cenniki z 2026 roku obowiązują do końca roku, na 2027 trzeba je zaktualizować.
+- Wybór innego sprzedawcy z katalogu nie ma jeszcze interfejsu; lista sprzedawców zostanie rozszerzona w przyszłych wersjach. Ważność cenników: „prawo wyboru” to cennik na 2026 rok; „EneoPewność” to umowy zawierane od 1.10 do 31.12.2026, ceny stałe przez 36 miesięcy.
 
 **Aktualizacja z v0.3: zmiana nazw encji oferty kompleksowej.** Klucz scenariusza zawiera teraz identyfikator oferty: `kompleksowa_G12` zmienił się na `kompleksowa_enea_2026_wybor_G12` (i analogicznie dla G11, G12w, oraz encji `razem` i `roznica`). Po aktualizacji stare encje oferty Enea znikają z rejestru, a w ich miejsce powstają nowe, z nowymi identyfikatorami. **Zaktualizuj automatyzacje, szablony i karty, które odwoływały się do starych encji**. Encje Pstryk i własnego cennika zostają bez zmian.
 
@@ -167,8 +169,8 @@ Pozostałe informacje:
 Integracja sama dodaje do paska bocznego HA panel **Porównanie taryf** (ikona wagi, widoczny dla wszystkich użytkowników). Panel składa się z linijki podsumowania i dwóch sekcji, które mają wspólną skalę pasków:
 
 - **Linijka podsumowania** na górze: kwota obecnej umowy za wybrany okres i najtańsza opcja ogółem z obu sekcji (albo informacja, że obecna jest najtańsza lub równie tania jak inna).
-- **Sekcja 1. „Prąd z Pstryka + dystrybucja Enea Operator”:** własny werdykt (najtańsza taryfa dystrybucyjna albo „obecna taryfa jest najtańsza”), wykres taryf G11 / G12 / G12w / G13active przy umowie z Pstryk oraz kafelki: Tarcza Pstryk, zużycie, tanie i drogie godziny, data danych.
-- **Sekcja 2. „Umowa kompleksowa Enea”:** własny werdykt (najtańsza oferta kompleksowa kontra obecna umowa z Pstryk), wykres oferty Enei (i własnego cennika, jeśli go zdefiniujesz) oraz uwagi: gdy sprzedawca nie oferuje którejś taryfy, jest o tym adnotacja, a przy ofercie Enei także przypomnienie, że to cennik 2026 dla klientów, którzy zmieniali sprzedawcę, i że ofertę trzeba potwierdzić w Enei.
+- **Sekcja 1. „Prąd z Pstryka + dystrybucja Enea Operator”:** własny werdykt (najtańsza taryfa dystrybucyjna albo „obecna taryfa jest najtańsza”), wykres taryf G11 / G12 / G12w / G12sezON / G13active przy umowie z Pstryk oraz kafelki: Tarcza Pstryk, zużycie, tanie i drogie godziny, data danych.
+- **Sekcja 2. „Umowa kompleksowa Enea”:** własny werdykt (najtańsza oferta kompleksowa kontra obecna umowa z Pstryk) i jeden wspólny ranking wszystkich ofert z katalogu (Enea prawo wyboru, Enea EneoPewność) oraz własnego cennika, jeśli go zdefiniujesz. Pod wykresem panel pokazuje dla każdej oferty, których taryf ona nie obejmuje, oraz jej uwagi (warunki, ważność cennika, potwierdzenie oferty w Enei).
 
 Gdy inna opcja kosztuje tyle samo co obecna (po zaokrągleniu do groszy), panel pisze, że jest „równie tania”. Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel pojawia się po dodaniu integracji i znika razem z ostatnim wpisem. Żeby go ukryć, zmień kolejność lub widoczność pozycji w pasku bocznym (przytrzymaj nagłówek paska bocznego lub wybierz „Edytuj pasek boczny”).
 
@@ -223,6 +225,7 @@ Read these before trusting a result.
 - **Distribution rates change every year.** The operator publishes the new tariff in December. The preset is for 2026; for readings from any other year the warning `stawki_spoza_roku:<year>` appears. Update the rates when the tariff changes.
 - **Saving the "VAT and rates" or "Shield" options persists ALL values in the form.** Later preset corrections shipped in a newer version (e.g. 2027 rates or a verified 2027 Shield) will not reach you until you change those values by hand or remove and re-add the integration.
 - **Consumption is assumed unchanged.** The result assumes you use electricity in the same hours after changing tariff or seller. That is often untrue: if, for example, you charge an EV at 13–15 because that pays off under G12 and dynamic prices, the best pattern under a fixed-price seller or another tariff would differ. The integration does not model this.
+- **Meter zone clock.** The operator tariff (item 2.2.12) allows meters whose zone clock stays on winter time (CET) all year unless the meter adjusts itself. The integration uses wall-clock local time. If your meter keeps winter time, in summer the real zones are shifted by one hour (e.g. G12sezON 5–7 and 10–18). This applies to all zoned tariffs.
 - **A single month misleads.** A tariff that is more expensive in one month can be cheaper over a year (seasonal differences). **Base a tariff decision on a period of at least 12 months** (the "Year" period or a custom range).
 - This is an indicative tool. A result is neither advice nor a guarantee; compare it with your invoices.
 
@@ -265,7 +268,7 @@ G11 has a single all-day zone (all consumption counts as "cheap", "expensive" = 
 | April–September | 4–6 and 9–17 |
 | October–March | 22–6 and 11–13 |
 
-Hours follow the wall clock (Europe/Warsaw), so after a clock change the zone moves with the clock. G12sezON network rates are the same as G12 (recommended = like G12 night); only the zone hours differ. Changing the tariff group at the operator is restricted (in general once per 12 months), so check the terms with your DSO before choosing it.
+Hours follow the wall clock (Europe/Warsaw), i.e. local civil time. G12sezON network rates in the Enea preset are the same as G12 (recommended = like G12 night); only the zone hours differ. They are separate values: overriding the G12 rates in the options does not change the G12sezON rates (and vice versa), so if your rates differ, edit both tariffs. Changing the tariff group at the operator is restricted (in general once per 12 months), so check the terms with your DSO before choosing it.
 
 **Options** (Settings → Devices & services → Porównanie taryf → Configure); saving any step reloads the integration:
 
@@ -295,7 +298,7 @@ Changing the period recalculates from locally stored data, **without any API cal
 | `<scenario> — difference vs current` | The scenario's `total` minus the current scenario's `total`. **Positive = more expensive than now**, negative = cheaper. Not created for the current scenario. |
 | `kWh in cheap hours` / `kWh in expensive hours` | Consumption in the cheap and in the remaining zones of the current tariff (kWh). |
 
-The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, the built-in comprehensive offers *Enea prawo wyboru + G11 / G12 / G12w* and *Enea EneoPewność + G11 / G12 / G12w / G12sezON* (see below) and, if you define an own price list, `<price list name> + <tariff>` for the tariffs with a complete set of prices.
+The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, the built-in comprehensive offers *Enea prawo wyboru + G11 / G12 / G12w* and *Enea EneoPewność + G11 / G12 / G12w / G12sezON / G13active* (see below) and, if you define an own price list, `<price list name> + <tariff>` for the tariffs with a complete set of prices.
 
 **Sensor attributes** (names are ASCII, convenient in templates):
 
@@ -348,16 +351,17 @@ Besides the Pstryk scenarios the integration has two built-in comprehensive offe
 | G12 | day 0.5736 · night 0.3365 |
 | G12w | peak 0.6464 · off-peak 0.3459 |
 | G12sezON | other hours 0.5841 · recommended usage 0.3465 |
+| G13active | ograniczanie 0.6435 · pozostałe 0.4950 · pobór 0.2772 |
 
-- **Fee and duration:** the energy price and the trading fee are fixed for **36 months**. The 15.94 PLN/month fee applies to e-invoicing (a paper invoice costs more: 20.01 PLN) and includes the "Elektryk" (electrician) service, which cannot be detached from the offer.
-- **Tariff group condition:** when the contract is concluded as part of a seller change, the distribution tariff group billed immediately before the change must be the same as the group chosen in the new contract. If you have G12 today and want G12sezON, change the group at the operator first; a seller change alone will not do.
-- **Price list validity:** it applies to contracts concluded in Q4 2026. It does not cover G13active.
+- **Fee and duration:** the energy price and the trading fee are fixed for **36 months**. The 15.94 PLN/month net fee applies to e-invoicing (a paper invoice costs more: 20.01 PLN net) and includes the "Elektryk" (electrician) service, which cannot be detached from the offer.
+- **Tariff group condition:** when the contract is concluded as part of a seller change, the distribution tariff group billed immediately before the change must be the same as the group chosen in the new contract. If you have G12 today and want another group (e.g. G12sezON), change the group at the operator first; a seller change alone will not do.
+- **Price list validity:** it applies to contracts signed from 1 Oct to 31 Dec 2026, with prices fixed for 36 months.
 - **Source:** the EneoPewność 36-month price list (no. EP36010330_G) and the offer's terms of 1 Oct 2026, `https://www.enea.pl/eneopewnosc`. It is a market offer; confirm the terms with Enea before deciding.
 
 Other notes:
 
 - Enea scenarios have `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, and the offers are told apart by the `oferta` attribute and the scenario key. An own price list has the same `grupa`, its name as `sprzedawca` and an empty `oferta`; all of them can exist at once.
-- Choosing another seller from the catalogue has no UI yet; the list of sellers will grow in future versions. The 2026 price lists apply until the end of the year and need updating for 2027.
+- Choosing another seller from the catalogue has no UI yet; the list of sellers will grow in future versions. Validity of the price lists: "prawo wyboru" is the 2026 price list; "EneoPewność" is for contracts signed from 1 Oct to 31 Dec 2026, with prices fixed for 36 months.
 
 **Upgrading from v0.3: the comprehensive-offer entities are renamed.** The scenario key now contains the offer id: `kompleksowa_G12` became `kompleksowa_enea_2026_wybor_G12` (likewise for G11, G12w, and for both the `razem`/total and `roznica`/difference entities). After the update the old Enea-offer entities disappear from the registry and new ones, with new IDs, are created in their place. **Update any automations, templates and cards that referenced the old entities**. Pstryk and own-price-list entities are unchanged.
 
@@ -366,8 +370,8 @@ Other notes:
 The integration adds a **Porównanie taryf** panel (always in Polish, as Pstryk and Enea operate only in Poland) to the HA sidebar by itself (scale icon, visible to all users). It consists of a summary line and two sections on a shared bar scale:
 
 - **Summary line** at the top: the current contract's cost for the selected period and the cheapest option overall across both sections (or a note that the current one is the cheapest or as cheap as another).
-- **Section 1, "Pstryk power + Enea Operator distribution":** its own verdict (the cheapest distribution tariff, or "the current tariff is the cheapest"), a chart of G11 / G12 / G12w / G13active under the Pstryk contract and tiles: Pstryk Shield, consumption, cheap and expensive hours, data date.
-- **Section 2, "Enea comprehensive contract":** its own verdict (the cheapest comprehensive offer versus the current Pstryk contract), a chart of Enea's offer (and your own price list, if you define one) and notes: when a seller does not offer a tariff a note says so, and for Enea's offer it also reminds you that these are 2026 prices for customers who changed supplier and that you should confirm the offer with Enea.
+- **Section 1, "Pstryk power + Enea Operator distribution":** its own verdict (the cheapest distribution tariff, or "the current tariff is the cheapest"), a chart of G11 / G12 / G12w / G12sezON / G13active under the Pstryk contract and tiles: Pstryk Shield, consumption, cheap and expensive hours, data date.
+- **Section 2, "Enea comprehensive contract":** its own verdict (the cheapest comprehensive offer versus the current Pstryk contract) and one shared ranking of all catalogue offers (Enea prawo wyboru, Enea EneoPewność) plus your own price list, if you define one. Under the chart the panel shows, per offer, which tariffs it does not cover and its notes (conditions, price list validity, confirming the offer with Enea).
 
 When another option costs the same as the current one (after rounding to the cent), the panel says it is "as cheap". It reads everything from the integration's entities, so there is nothing to configure. The panel appears once the integration is added and disappears with the last config entry. To hide it, edit the sidebar (press and hold the sidebar title, or choose "Edit sidebar") and turn the item off.
 

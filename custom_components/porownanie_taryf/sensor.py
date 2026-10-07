@@ -63,6 +63,7 @@ class KwhSensor(_Sensor):
 
 
 class ScenariuszSensor(_Sensor):
+    _unrecorded_attributes = frozenset({"uwagi"})  # długi statyczny tekst nie powinien trafiać do rejestratora
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = "PLN"
     _attr_suggested_display_precision = 2

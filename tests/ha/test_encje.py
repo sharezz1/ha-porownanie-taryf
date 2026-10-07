@@ -126,6 +126,14 @@ async def test_atrybuty_oferty_i_uwag(hass, wpis, pobierz):
     assert (p["oferta"], p["uwagi"]) == ("", [])
     assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12sezON_razem") is None  # prawo wyboru nie ma G12sezON
     assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_razem").attributes["oferta"] == "prawo wyboru"
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_eneopewnosc_2026_G13active_razem").attributes["taryfa"] == "G13active"
+
+
+async def test_uwagi_poza_rejestratorem(hass, wpis, pobierz):
+    from custom_components.porownanie_taryf.sensor import ScenariuszSensor
+
+    assert "uwagi" in ScenariuszSensor._unrecorded_attributes
+    assert "uwagi" in ScenariuszSensor._Entity__combined_unrecorded_attributes  # HA faktycznie to uwzględnia
 
 
 async def test_wlasny_cennik_bez_oferty_i_uwag(hass, wpis, pobierz):
