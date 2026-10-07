@@ -4,7 +4,7 @@
 const DOMENA = "porownanie_taryf";
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const RODZAJE = ["dzien", "miesiac", "rok", "zakres"];
-const TARYFY = ["G11", "G12", "G12w", "G13active"]; // kolejność jak w integracji (nie wg ceny)
+const TARYFY = ["G11", "G12", "G12w", "G12sezON", "G13active"]; // kolejność jak w integracji (nie wg ceny)
 const kolejnosc = (t) => (TARYFY.includes(t) ? TARYFY.indexOf(t) : TARYFY.length);
 
 const liczba = (st) => {
@@ -36,7 +36,9 @@ export function zbierzDane(hass) {
       // brak atrybutów grupy (sensory sprzed v0.3.0) = Pstryk
       grupa: a.grupa === "kompleksowa" ? "kompleksowa" : "pstryk",
       sprzedawca: a.sprzedawca ?? null,
-      taryfa: a.taryfa ?? a.scenariusz.split("_")[1] ?? null,
+      taryfa: a.taryfa ?? a.scenariusz.split("_").at(-1) ?? null,
+      oferta: a.oferta ?? "", // "" = Pstryk albo własny cennik
+      uwagi: Array.isArray(a.uwagi) ? a.uwagi : [],
       razem: liczba(s),
       sprzedazPo: a.sprzedaz_po ?? 0,
       dystrybucja: a.dystrybucja ?? 0,
@@ -53,11 +55,18 @@ export function zbierzDane(hass) {
   const grupa = (g) => scenariusze.filter((s) => s.grupa === g).sort(porownaj);
   const ranking = grupa("pstryk");
   const kompleksowa = grupa("kompleksowa");
-  // taryfy z pierwszego wykresu, których sprzedawca kompleksowy nie oferuje (własny cennik pomijamy: to wybór użytkownika)
-  const brakujace = [...new Set(kompleksowa.filter((s) => !s.klucz.startsWith("cennik_")).map((s) => s.sprzedawca))].map((sprzedawca) => ({
-    sprzedawca,
-    taryfy: ranking.map((s) => s.taryfa).filter((t) => !kompleksowa.some((k) => k.sprzedawca === sprzedawca && k.taryfa === t)).sort((x, y) => kolejnosc(x) - kolejnosc(y)),
-  })).filter((b) => b.taryfy.length);
+  // oferty katalogu = grupy (sprzedawca, oferta) z atrybutów; własny cennik (oferta "") nie dostaje ani uwag, ani brakujących taryf
+  const oferty = new Map();
+  for (const s of scenariusze.filter((x) => x.grupa === "kompleksowa" && x.oferta)) {
+    const k = JSON.stringify([s.sprzedawca, s.oferta]);
+    if (!oferty.has(k)) oferty.set(k, { sprzedawca: s.sprzedawca, oferta: s.oferta, taryfy: new Set(), uwagi: [...new Set(s.uwagi)] }); // uwagi z pierwszego sensora oferty
+    oferty.get(k).taryfy.add(s.taryfa);
+  }
+  const listaOfert = [...oferty.values()];
+  const brakujace = listaOfert
+    .map((o) => ({ sprzedawca: o.sprzedawca, oferta: o.oferta, taryfy: ranking.map((s) => s.taryfa).filter((t) => !o.taryfy.has(t)).sort((x, y) => kolejnosc(x) - kolejnosc(y)) }))
+    .filter((b) => b.taryfy.length);
+  const uwagi = listaOfert.filter((o) => o.uwagi.length).map(({ sprzedawca, oferta, uwagi }) => ({ sprzedawca, oferta, uwagi }));
 
   const a = (razem.find((s) => s.attributes?.obecny) ?? razem[0])?.attributes ?? {};
   const pokrycie = typeof a.pokrycie === "number" ? a.pokrycie : null;
@@ -71,6 +80,7 @@ export function zbierzDane(hass) {
     ranking,
     kompleksowa,
     brakujace,
+    uwagi,
     obecny,
     kwh: { tanie: liczba(hass.states?.[jedna("kwh_tanie")]), drogie: liczba(hass.states?.[jedna("kwh_drogie")]) },
     pokrycie,
@@ -194,7 +204,6 @@ const T = {
   sekcja2: (sprzedawca) => (sprzedawca ? `2. Umowa kompleksowa ${sprzedawca} (prąd i dystrybucja od ${DOPELNIACZ[sprzedawca]})` : "2. Umowa kompleksowa"),
   prad: "prąd po tarczy", pradK: "prąd", dystr: "dystrybucja", obecna: "obecna",
   brakTaryfy: (kto, taryfy) => `${kto} nie oferuje ${taryfy.join(" ani ")} gospodarstwom domowym.`,
-  cennikEnei: "Ceny Enei z cennika 2026 dla klientów, którzy zmieniali sprzedawcę — przed decyzją potwierdź ofertę w Enei.",
   drozej: "drożej niż obecna", taniej: "taniej niż obecna",
   tarcza: "Tarcza Pstryk", zuzycie: "Zużycie", tanie: "Tanie godziny", drogie: "Drogie godziny", dane: "Dane",
   podTarcza: "rabat już odjęty od kosztu", podZuzycie: "energia pobrana z sieci", podStrefy: "w obecnej taryfie",
@@ -322,17 +331,20 @@ export function htmlWynikow(dane) {
     </section>`;
 
   const k = dane.kompleksowa;
-  const katalog = naTaryfy(k, Object.hasOwn(DOPELNIACZ, k[0]?.sprzedawca)); // jeden katalogowy sprzedawca: nazwa w nagłówku, wiersze = sama taryfa
-  const adnotacje = dane.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(b.sprzedawca, b.taryfy))}</p>`).join("");
-  // nota tylko dla katalogowej Enei (klucz kompleksowa_*); własny cennik (cennik_*) o tej samej nazwie jej nie dostaje
-  const notaEnei = k.some((s) => s.sprzedawca === "Enea" && s.klucz.startsWith("kompleksowa_")) ? `<p class="adnotacja">${esc(T.cennikEnei)}</p>` : "";
+  const sprzedawcy = new Set(k.map((s) => s.sprzedawca));
+  const jeden = sprzedawcy.size === 1 && Object.hasOwn(DOPELNIACZ, k[0].sprzedawca); // jeden katalogowy sprzedawca: nazwa w nagłówku
+  const doOfert = k.some((s) => s.oferta);
+  const etykietaK = (s) =>
+    s.oferta && sprzedawcy.size === 1 ? `${s.oferta} · ${s.taryfa}` : !doOfert && naTaryfy(k, jeden) ? s.taryfa : s.etykieta;
+  const adnotacje = dane.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(`${b.sprzedawca} (${b.oferta})`, b.taryfy))}</p>`).join("");
+  const uwagi = dane.uwagi.flatMap((u) => u.uwagi).length ? dane.uwagi.map((u) => u.uwagi.map((z) => `<p class="adnotacja">${esc(z)}</p>`).join("")).join("") : "";
   const sekcja2 = k.length
     ? `<section class="karta">
-      <h3>${esc(T.sekcja2(katalog ? k[0].sprzedawca : null))}</h3>
+      <h3>${esc(T.sekcja2(jeden ? k[0].sprzedawca : null))}</h3>
       ${werdykt(werdyktKompleksowa(dane))}
       ${legenda(T.pradK, "prad2")}
-      <ol class="ranking">${k.map((s) => wiersz(s, katalog ? s.taryfa : s.etykieta, "prad2")).join("")}</ol>
-      ${adnotacje}${notaEnei}
+      <ol class="ranking">${k.map((s) => wiersz(s, etykietaK(s), "prad2")).join("")}</ol>
+      ${adnotacje}${uwagi}
     </section>`
     : "";
 

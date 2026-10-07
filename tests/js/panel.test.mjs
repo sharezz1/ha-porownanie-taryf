@@ -37,20 +37,21 @@ const G12W = ["pstryk_G12w", "Pstryk + G12w", 820, 500, 320, -100, false];
 const G13 = ["pstryk_G13active", "Pstryk + G13active", 810, 500, 310, -100, false];
 const ROZNICE = { pstryk_G12w: 20.01, pstryk_G13active: 10 };
 
-const meta = (grupa, sprzedawca, taryfa) => ({ grupa, sprzedawca, taryfa });
+const meta = (grupa, sprzedawca, taryfa, oferta = "", uwagi = []) => ({ grupa, sprzedawca, taryfa, oferta, uwagi });
+const UWAGA_WYBOR = "Uwaga testowa A: potwierdź ofertę.";
 const pstryk = (s) => [...s, meta("pstryk", "Pstryk", s[0].split("_")[1])];
 const PG11 = ["pstryk_G11", "Pstryk + G11", 830, 500, 330, -100, false, meta("pstryk", "Pstryk", "G11")];
-const enea = (t, razem, po, dystr) => [`kompleksowa_${t}`, `Enea + ${t}`, razem, po, dystr, 0, false, meta("kompleksowa", "Enea", t)];
+const enea = (t, razem, po, dystr) => [`kompleksowa_enea_2026_wybor_${t}`, `Enea + ${t}`, razem, po, dystr, 0, false, meta("kompleksowa", "Enea", t, "prawo wyboru", [UWAGA_WYBOR])];
 const ENEA = [enea("G11", 1000, 450, 550), enea("G12", 850, 450, 400), enea("G12w", 900, 450, 450)];
-const ROZNICE_ENEA = { pstryk_G11: 30, kompleksowa_G11: 200, kompleksowa_G12: 50, kompleksowa_G12w: 100 };
+const ROZNICE_ENEA = { pstryk_G11: 30, kompleksowa_enea_2026_wybor_G11: 200, kompleksowa_enea_2026_wybor_G12: 50, kompleksowa_enea_2026_wybor_G12w: 100 };
 const hassEnea = (opcje = {}) => hassZ({
   scenariusze: [pstryk(G12), pstryk(G12W), pstryk(G13), PG11, ...ENEA], roznice: { ...ROZNICE, ...ROZNICE_ENEA }, ...opcje,
 });
 const hassEneaG12 = (razem, roznica) => {   // podmienia sumę i różnicę Enea + G12 (reszta jak w hassEnea)
   const h = hassEnea();
   const eid = (tk, k) => Object.keys(h.entities).find(e => h.entities[e].translation_key === tk && h.states[e].attributes.scenariusz === k);
-  h.states[eid("razem", "kompleksowa_G12")].state = razem;
-  h.states[eid("roznica", "kompleksowa_G12")].state = roznica;
+  h.states[eid("razem", "kompleksowa_enea_2026_wybor_G12")].state = razem;
+  h.states[eid("roznica", "kompleksowa_enea_2026_wybor_G12")].state = roznica;
   return h;
 };
 const hassEneaTansza = () => hassEneaG12("770", "-30");
@@ -153,9 +154,9 @@ test("okres bez odczytów (pokrycie 0) to brak wyniku, nie ranking zer", () => {
 test("dwie grupy: ranking Pstryk (4 wiersze), kompleksowa posortowana, brakujące taryfy", () => {
   const d = zbierzDane(hassEnea());
   assert.deepEqual(d.ranking.map(s => s.klucz), ["pstryk_G12", "pstryk_G13active", "pstryk_G12w", "pstryk_G11"]);
-  assert.deepEqual(d.kompleksowa.map(s => s.klucz), ["kompleksowa_G12", "kompleksowa_G12w", "kompleksowa_G11"]);
+  assert.deepEqual(d.kompleksowa.map(s => s.klucz), ["kompleksowa_enea_2026_wybor_G12", "kompleksowa_enea_2026_wybor_G12w", "kompleksowa_enea_2026_wybor_G11"]);
   assert.equal(d.kompleksowa[0].roznica, 50);
-  assert.deepEqual(d.brakujace, [{ sprzedawca: "Enea", taryfy: ["G13active"] }]);
+  assert.deepEqual(d.brakujace, [{ sprzedawca: "Enea", oferta: "prawo wyboru", taryfy: ["G13active"] }]);
 });
 test("brak atrybutu grupa (stare sensory) → grupa pstryk; brak kompleksowej → pusta lista", () => {
   const d = zbierzDane(hassWrzesien());
@@ -177,11 +178,11 @@ test("obecna G11: całe zużycie tanie, drogie 0, werdykt i HTML bez błędów",
 test("brakujące taryfy: kolejność G11, G12, G12w, G13active (nie wg ceny), spójnik „ani”", () => {
   const h = hassZ({
     scenariusze: [pstryk(G12), pstryk(G12W), pstryk(G13), PG11, enea("G12", 850, 450, 400), enea("G12w", 900, 450, 450)],
-    roznice: { ...ROZNICE, pstryk_G11: 30, kompleksowa_G12: 50, kompleksowa_G12w: 100 },
+    roznice: { ...ROZNICE, pstryk_G11: 30, kompleksowa_enea_2026_wybor_G12: 50, kompleksowa_enea_2026_wybor_G12w: 100 },
   });
   const d = zbierzDane(h);   // w rankingu cenowo G13active przed G11; w nocie ma być G11 pierwsze
-  assert.deepEqual(d.brakujace, [{ sprzedawca: "Enea", taryfy: ["G11", "G13active"] }]);
-  assert.match(htmlWynikow(d), /Enea nie oferuje G11 ani G13active gospodarstwom domowym\./);
+  assert.deepEqual(d.brakujace, [{ sprzedawca: "Enea", oferta: "prawo wyboru", taryfy: ["G11", "G13active"] }]);
+  assert.match(htmlWynikow(d), /Enea \(prawo wyboru\) nie oferuje G11 ani G13active gospodarstwom domowym\./);
 });
 
 // --- v0.3.1: dwie sekcje, linijka podsumowania, osobne werdykty, tylko po polsku ---
@@ -191,7 +192,7 @@ const hassMieszany = () => {   // obecny G12, G12w tańsza o 25,86 w sekcji 1, E
   const h = hassEnea();
   const ustaw = (tk, k, v) => { h.states[Object.keys(h.entities).find(e => h.entities[e].translation_key === tk && h.states[e].attributes.scenariusz === k)].state = v; };
   ustaw("razem", "pstryk_G12w", "774.14"); ustaw("roznica", "pstryk_G12w", "-25.86");
-  ustaw("razem", "kompleksowa_G12", "597.79"); ustaw("roznica", "kompleksowa_G12", "-202.21");
+  ustaw("razem", "kompleksowa_enea_2026_wybor_G12", "597.79"); ustaw("roznica", "kompleksowa_enea_2026_wybor_G12", "-202.21");
   return h;
 };
 
@@ -238,7 +239,7 @@ test("naTaryfy: skracanie etykiet tylko dla jednego (katalogowego) sprzedawcy i 
   assert.equal(naTaryfy(d.ranking), true);
   assert.equal(naTaryfy(d.kompleksowa, true), true);
   assert.equal(naTaryfy(d.kompleksowa, false), false);
-  const zly = zbierzDane(hassZ({ scenariusze: [pstryk(G12), ["cennik_G12", "Moja + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Moja", "G12")], enea("G12", 850, 450, 400)], roznice: { cennik_G12: 80, kompleksowa_G12: 50 } }));
+  const zly = zbierzDane(hassZ({ scenariusze: [pstryk(G12), ["cennik_G12", "Moja + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Moja", "G12")], enea("G12", 850, 450, 400)], roznice: { cennik_G12: 80, kompleksowa_enea_2026_wybor_G12: 50 } }));
   assert.equal(naTaryfy(zly.kompleksowa, true), false);   // dwóch sprzedawców
   assert.equal(naTaryfy([]), false);
 });
@@ -254,7 +255,7 @@ test("HTML: podsumowanie, dwie ponumerowane sekcje, kafelki w sekcji 1, odstęp,
   for (const k of ["Tarcza Pstryk", "Zużycie", "Tanie godziny", "Drogie godziny", "Dane"]) { assert.ok(przed.includes(`<dt>${k}</dt>`)); assert.ok(!po.includes(`<dt>${k}</dt>`)); }
   assert.match(przed, /<span class="etykieta">G12<span class="odznaka">obecna<\/span>/);
   assert.match(przed, /<span class="etykieta">G12w<\/span>/);
-  assert.match(po, /<span class="etykieta">G12<\/span>/);
+  assert.match(po, /<span class="etykieta">prawo wyboru · G12<\/span>/);
   assert.equal((html.match(/class="odznaka"/g) ?? []).length, 1);
   // kolory „prądu”: sekcja 1 = prad, sekcja 2 = prad2; legendy „prąd po tarczy” / „prąd”
   assert.ok(przed.includes('class="prad"') && !przed.includes("prad2"));
@@ -263,9 +264,9 @@ test("HTML: podsumowanie, dwie ponumerowane sekcje, kafelki w sekcji 1, odstęp,
   // wspólna skala: 500 / 1000 (najdroższy z obu sekcji), nie / 830
   assert.match(html, /width:50\.00%/); assert.doesNotMatch(html, /width:60\.24%/);
   // adnotacje pod wykresem sekcji 2, ostrzeżenia i rada na dole
-  assert.match(po, /Enea nie oferuje G13active gospodarstwom domowym\./);
-  assert.match(po, /<p class="adnotacja">Ceny Enei z cennika 2026 dla klientów, którzy zmieniali sprzedawcę — przed decyzją potwierdź ofertę w Enei\.<\/p>/);
-  assert.ok(html.indexOf("O zmianie taryfy decyduj") > html.indexOf("Ceny Enei"));
+  assert.match(po, /Enea \(prawo wyboru\) nie oferuje G13active gospodarstwom domowym\./);
+  assert.match(po, new RegExp(`<p class="adnotacja">${UWAGA_WYBOR}</p>`));
+  assert.ok(html.indexOf("O zmianie taryfy decyduj") > html.indexOf(UWAGA_WYBOR));
   assert.doesNotMatch(html, /Comprehensive|Tariff|current|cheapest/);
 });
 test("HTML: obecna najtańsza → werdykt sekcji 1 bez koloru sukcesu; sekcja 2 „więcej”", () => {
@@ -275,14 +276,14 @@ test("HTML: obecna najtańsza → werdykt sekcji 1 bez koloru sukcesu; sekcja 2 
 });
 test("HTML: bez ofert kompleksowych nie ma sekcji 2 ani adnotacji", () => {
   const html = htmlWynikow(zbierzDane(hassWrzesien()));
-  assert.doesNotMatch(html, /<h3>2\.|kompleksow|nie oferuje|z cennika 2026/);
+  assert.doesNotMatch(html, /<h3>2\.|kompleksow|nie oferuje|Uwaga testowa/);
   assert.match(html, /<h3>1\. /);
 });
 test("HTML: samotny własny cennik o nazwie „Enea”: nagłówek z Enią, ale bez noty o cenniku 2026", () => {
   const wlasny = hassZ({ scenariusze: [pstryk(G12), ["cennik_G12", "Enea + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Enea", "G12")]], roznice: { cennik_G12: 80 } });
   const html = htmlWynikow(zbierzDane(wlasny));
   assert.match(html, /<h3>2\. Umowa kompleksowa Enea \(prąd i dystrybucja od Enei\)<\/h3>/);
-  assert.doesNotMatch(html, /z cennika 2026/);
+  assert.doesNotMatch(html, /adnotacja/);
 });
 test("HTML: własny cennik innego sprzedawcy / kilku sprzedawców → nagłówek ogólny, etykiety z nazwą, nazwa escapowana", () => {
   const zly = ["cennik_G12", "<img src=x> + G12", 900, 600, 300, 0, false, meta("kompleksowa", "<img src=x>", "G12")];
@@ -295,4 +296,84 @@ test("HTML: własny cennik innego sprzedawcy / kilku sprzedawców → nagłówek
   const sam = hassZ({ scenariusze: [pstryk(G12), ["cennik_G12", "Moja + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Moja", "G12")]], roznice: { cennik_G12: 80 } });
   const h2 = htmlWynikow(zbierzDane(sam));
   assert.match(h2, /<h3>2\. Umowa kompleksowa<\/h3>/); assert.match(h2, /<span class="etykieta">Moja \+ G12<\/span>/);
+});
+
+// --- v0.4.0: G12sezON w sekcji 1, wiele ofert katalogu w sekcji 2, uwagi z atrybutów ---
+
+const UWAGI_PEWNOSC = ["Cena stała przez 36 miesięcy.", "Zmiana grupy u operatora <img src=x onerror=1>."];
+const oferta = (id, of, uwagi, t, razem, po, dystr) => [`kompleksowa_${id}_${t}`, `Enea ${of} + ${t}`, razem, po, dystr, 0, false, meta("kompleksowa", "Enea", t, of, uwagi)];
+const WYBOR = (t, r, po, d) => oferta("enea_2026_wybor", "prawo wyboru", [UWAGA_WYBOR], t, r, po, d);
+const PEWNOSC = (t, r, po, d) => oferta("enea_eneopewnosc_2026", "EneoPewność", UWAGI_PEWNOSC, t, r, po, d);
+const PSEZ = ["pstryk_G12sezON", "Pstryk + G12sezON", 805, 500, 305, -100, false, meta("pstryk", "Pstryk", "G12sezON")];
+const hassDwieOferty = (extra = [], roznice = {}) => hassZ({
+  scenariusze: [pstryk(G12), pstryk(G12W), PSEZ, pstryk(G13), PG11,
+    WYBOR("G11", 1000, 450, 550), WYBOR("G12", 850, 450, 400), WYBOR("G12w", 900, 450, 450),
+    PEWNOSC("G11", 960, 440, 520), PEWNOSC("G12", 700, 400, 300), PEWNOSC("G12w", 750, 410, 340), PEWNOSC("G12sezON", 780, 420, 360), ...extra],
+  roznice: { ...ROZNICE, pstryk_G11: 30, pstryk_G12sezON: 5, kompleksowa_enea_2026_wybor_G11: 200, kompleksowa_enea_2026_wybor_G12: 50, kompleksowa_enea_2026_wybor_G12w: 100,
+    kompleksowa_enea_eneopewnosc_2026_G11: 160, kompleksowa_enea_eneopewnosc_2026_G12: -100, kompleksowa_enea_eneopewnosc_2026_G12w: -50, kompleksowa_enea_eneopewnosc_2026_G12sezON: -20, ...roznice },
+});
+
+test("sekcja 1: G12sezON jako piąty wiersz, kolejność wg ceny", () => {
+  const d = zbierzDane(hassDwieOferty());
+  assert.equal(d.ranking.length, 5);
+  assert.deepEqual(d.ranking.map(s => s.taryfa), ["G12", "G12sezON", "G13active", "G12w", "G11"]);
+  const html = htmlWynikow(d);
+  assert.match(html.split('<h3>2. ')[0], /<span class="etykieta">G12sezON<\/span>/);
+});
+test("sekcja 2: dwie oferty Enei w jednym rankingu rosnąco, etykiety „oferta · taryfa”, nagłówek sprzedawcy", () => {
+  const d = zbierzDane(hassDwieOferty());
+  assert.deepEqual(d.kompleksowa.map(s => s.taryfa), ["G12", "G12w", "G12sezON", "G12", "G12w", "G11", "G11"]);
+  assert.deepEqual(d.kompleksowa.map(s => s.oferta), ["EneoPewność", "EneoPewność", "EneoPewność", "prawo wyboru", "prawo wyboru", "EneoPewność", "prawo wyboru"]);
+  const po = htmlWynikow(d).split('<h3>2. ')[1];
+  assert.match(po, /^Umowa kompleksowa Enea \(prąd i dystrybucja od Enei\)<\/h3>/);
+  assert.match(po, /<span class="etykieta">EneoPewność · G12<\/span>/);
+  assert.match(po, /<span class="etykieta">prawo wyboru · G11<\/span>/);
+  assert.ok(po.indexOf("EneoPewność · G12<") < po.indexOf("prawo wyboru · G12<"));
+});
+test("brakujące taryfy osobno dla każdej oferty (kolejność TARYFY), tekst z ofertą w nawiasie", () => {
+  const d = zbierzDane(hassDwieOferty());
+  assert.deepEqual(d.brakujace, [
+    { sprzedawca: "Enea", oferta: "prawo wyboru", taryfy: ["G12sezON", "G13active"] },
+    { sprzedawca: "Enea", oferta: "EneoPewność", taryfy: ["G13active"] },
+  ]);
+  const html = htmlWynikow(d);
+  assert.match(html, /Enea \(prawo wyboru\) nie oferuje G12sezON ani G13active gospodarstwom domowym\./);
+  assert.match(html, /Enea \(EneoPewność\) nie oferuje G13active gospodarstwom domowym\./);
+});
+test("uwagi z atrybutu: każde zdanie raz na ofertę, escapowane, bez zdania wpisanego w panel", () => {
+  const d = zbierzDane(hassDwieOferty());
+  assert.deepEqual(d.uwagi, [
+    { sprzedawca: "Enea", oferta: "prawo wyboru", uwagi: [UWAGA_WYBOR] },
+    { sprzedawca: "Enea", oferta: "EneoPewność", uwagi: UWAGI_PEWNOSC },
+  ]);
+  const html = htmlWynikow(d);
+  assert.equal(html.split(UWAGA_WYBOR).length - 1, 1);
+  assert.equal(html.split("Cena stała przez 36 miesięcy.").length - 1, 1);
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /Zmiana grupy u operatora &#60;img src=x onerror=1&#62;\./);
+  assert.doesNotMatch(html, /z cennika 2026|Ceny Enei/);
+});
+test("własny cennik „Enea” obok katalogu: etykieta z nazwą, bez uwag i brakujących taryf katalogu", () => {
+  const wlasny = ["cennik_G12", "Enea + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Enea", "G12")];
+  const d = zbierzDane(hassDwieOferty([wlasny], { cennik_G12: 80 }));
+  assert.deepEqual(d.brakujace.map(b => b.oferta), ["prawo wyboru", "EneoPewność"]);
+  assert.deepEqual(d.uwagi.map(u => u.oferta), ["prawo wyboru", "EneoPewność"]);
+  const po = htmlWynikow(d).split('<h3>2. ')[1];
+  assert.match(po, /<span class="etykieta">Enea \+ G12<\/span>/);
+  assert.equal(po.split(UWAGA_WYBOR).length - 1, 1);
+});
+test("werdykt i podsumowanie wskazują najtańszą ofertę z etykietą oferty", () => {
+  const d = zbierzDane(hassDwieOferty());
+  assert.equal(werdyktKompleksowa(d).tekst, "Najtańsza: Enea EneoPewność + G12 — o 100,00 zł mniej niż obecna umowa z Pstrykiem");
+  assert.equal(podsumowanie(d), "Twoja umowa (Pstryk + G12): 800,00 zł · najtańsza opcja ogółem: Enea EneoPewność + G12, o 100,00 zł mniej");
+});
+test("własny cennik nie dostaje uwag katalogu także samotnie", () => {
+  const wlasny = ["cennik_G12", "Enea + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Enea", "G12")];
+  const d = zbierzDane(hassZ({ scenariusze: [pstryk(G12), pstryk(G13), wlasny], roznice: { ...ROZNICE, cennik_G12: 80 } }));
+  assert.deepEqual(d.brakujace, []);
+  assert.deepEqual(d.uwagi, []);
+});
+test("brak atrybutu taryfa: taryfa = ostatni człon klucza (nowe klucze kompleksowa_<id>_<T>)", () => {
+  const h = hassZ({ scenariusze: [G12, ["kompleksowa_enea_eneopewnosc_2026_G12", "Enea EneoPewność + G12", 700, 400, 300, 0, false, { grupa: "kompleksowa", sprzedawca: "Enea" }]] });
+  assert.equal(zbierzDane(h).kompleksowa[0].taryfa, "G12");
 });
