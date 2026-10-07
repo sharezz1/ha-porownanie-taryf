@@ -49,7 +49,7 @@ async def test_panel_zarejestrowany(hass, hass_storage):
     assert p.sidebar_icon == "mdi:scale-balance" and p.require_admin is False
     assert p.config["_panel_custom"]["name"] == "porownanie-taryf-panel"
     url = p.config["_panel_custom"]["module_url"]
-    assert re.fullmatch(r"/porownanie_taryf/panel\.js\?v=0\.3\.2-[0-9a-f]{8}", url)
+    assert re.fullmatch(r"/porownanie_taryf/panel\.js\?v=0\.4\.0-[0-9a-f]{8}", url)
     assert url.endswith(hashlib.sha256(PLIK.read_bytes()).hexdigest()[:8])
 
 
@@ -61,7 +61,7 @@ async def test_url_modulu_zmienia_sie_z_trescia_pliku(hass, hass_storage, tmp_pa
 
     url = hass.data[PANELE]["taryfy-pradu"].config["_panel_custom"]["module_url"]
     assert url.endswith(hashlib.sha256(inny.read_bytes()).hexdigest()[:8])
-    assert "?v=0.3.2-" in url
+    assert "?v=0.4.0-" in url
     assert not url.endswith(hashlib.sha256(PLIK.read_bytes()).hexdigest()[:8])
 
 

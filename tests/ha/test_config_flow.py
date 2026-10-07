@@ -97,6 +97,13 @@ async def test_user_taryfa_g11(hass, pobierz):
     assert r["data"]["taryfa"] == "G11"
 
 
+async def test_user_taryfa_g12sezon(hass, pobierz):
+    r = await _user(hass, {"api_key": "sk-test", "taryfa": "G12sezON"})
+
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    assert r["data"]["taryfa"] == "G12sezON"
+
+
 async def test_user_puste_tanie_g12(hass, pobierz):
     r = await _user(hass, {"api_key": "sk-test", "tanie_g12": []})
 
@@ -180,6 +187,7 @@ async def test_opcje_stawki(hass):
     assert wpis.options["stawki"]["G12_dzien"] == 0.30
     assert wpis.options["stawki"]["G12_noc"] == 0.0913  # reszta domyślna
     assert len(wpis.options["stawki"]) == 20
+    assert {"G12sezON_pozostale", "G12sezON_zalecana", "ssv_G12sezON"} <= wpis.options["stawki"].keys()
 
 
 async def test_opcje_stawki_g11(hass):

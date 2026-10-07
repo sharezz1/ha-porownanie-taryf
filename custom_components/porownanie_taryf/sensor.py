@@ -9,7 +9,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TaryfyConfigEntry, TaryfyCoordinator
-from .core.scenariusz import etykieta, grupa_scenariusza, klucze_scenariuszy, sprzedawca_scenariusza, taryfa_scenariusza
+from .core.scenariusz import cennik_scenariusza, etykieta, grupa_scenariusza, klucze_scenariuszy, sprzedawca_scenariusza, taryfa_scenariusza
 from .entity import TaryfyEntity
 
 POWOD_BRAK_KONCA = "koniec_przed_data"
@@ -84,11 +84,14 @@ class ScenariuszSensor(_Sensor):
 
     def _atrybuty(self, wynik) -> dict[str, Any]:
         s = wynik.scenariusze[self._klucz]
+        cennik = cennik_scenariusza(self._klucz, self.coordinator.konf)
         return super()._atrybuty(wynik) | {
             "scenariusz": self._klucz,
             "etykieta": etykieta(self._klucz, self.coordinator.konf),
             "grupa": grupa_scenariusza(self._klucz),
             "sprzedawca": sprzedawca_scenariusza(self._klucz, self.coordinator.konf),
+            "oferta": cennik.oferta if cennik else "",
+            "uwagi": list(cennik.uwagi) if cennik else [],
             "taryfa": taryfa_scenariusza(self._klucz),
             "obecny": self._klucz == wynik.obecny,
             "sprzedaz_przed": round(s.sprzedaz_przed, 2),

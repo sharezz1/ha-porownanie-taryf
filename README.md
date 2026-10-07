@@ -10,10 +10,10 @@ Integracja Home Assistant (HACS) · Home Assistant custom integration (HACS)
 
 Integracja liczy koszt prądu (**brutto**) dla okresu wybranego przez Ciebie, w scenariuszach *sprzedawca × taryfa dystrybucyjna*, i pomaga odpowiedzieć na dwa pytania:
 
-1. Czy taryfa **G11**, **G12w** lub **G13active** jest tańsza od obecnej (np. G12) przy niezmienionym zużyciu?
+1. Czy taryfa **G11**, **G12w**, **G12sezON** lub **G13active** jest tańsza od obecnej (np. G12) przy niezmienionym zużyciu?
 2. Czy opłaca się wrócić do sprzedawcy z umową kompleksową zamiast sprzedaży dynamicznej **Pstryk** — z uwzględnieniem **Tarczy Pstryk**?
 
-Dane zużycia i koszty sprzedaży pochodzą z API Pstryk. Stawki dystrybucyjne pochodzą z presetu (Enea Operator 2026: G11, G12, G12w, G13active) i można je zmienić w opcjach.
+Dane zużycia i koszty sprzedaży pochodzą z API Pstryk. Stawki dystrybucyjne pochodzą z presetu (Enea Operator 2026: G11, G12, G12w, G12sezON, G13active) i można je zmienić w opcjach.
 
 ### Ważne zastrzeżenia
 
@@ -33,7 +33,7 @@ Przeczytaj, zanim zaufasz wynikowi.
 - Dane z licznika energii elektrycznej są dostępne w API Pstryk.
 - Home Assistant **2026.8** lub nowszy.
 - Zainstalowany **HACS**.
-- Preset dopasowano do obszaru **Enea Operator**. W obszarze innego operatora (OSD) możesz zmienić stawki dystrybucyjne w opcjach, ale definicje stref G12w i G13active pozostają takie jak u Enei (nie da się ich edytować).
+- Preset dopasowano do obszaru **Enea Operator**. W obszarze innego operatora (OSD) możesz zmienić stawki dystrybucyjne w opcjach, ale definicje stref G12w, G12sezON i G13active pozostają takie jak u Enei (nie da się ich edytować).
 
 ### Instalacja przez HACS
 
@@ -54,16 +54,25 @@ Przeczytaj, zanim zaufasz wynikowi.
 | Klucz API Pstryk | Sprawdzany jednym zapytaniem o 1 dobę danych. Zapisywany w konfiguracji HA, wysyłany tylko do Pstryk. |
 | Układ przyłącza | 3f lub 1f; wpływa na stały składnik opłaty dystrybucyjnej. |
 | Preset | Na razie tylko Enea Operator 2026. |
-| Obecna taryfa | G11, G12, G12w lub G13active. Wszystkie „różnice względem obecnej” są liczone względem Pstryk + ta taryfa. |
+| Obecna taryfa | G11, G12, G12w, G12sezON lub G13active. Wszystkie „różnice względem obecnej” są liczone względem Pstryk + ta taryfa. |
 | Tanie godziny G12 | Godziny rozpoczęcia tanich godzin (domyślnie 22–6 i 13–15). Dotyczy tylko G12. |
 
-G11 ma jedną strefę całodobową (całe zużycie liczy się wtedy jako „tanie”, „drogie” = 0). Strefy G12w i G13active pochodzą z presetu i nie są edytowalne w interfejsie (G12w: szczyt w dni robocze 6–21, poza szczytem reszta oraz soboty, niedziele i święta; G13active: strefy zależne od miesiąca).
+G11 ma jedną strefę całodobową (całe zużycie liczy się wtedy jako „tanie”, „drogie” = 0). Strefy G12w, G12sezON i G13active pochodzą z presetu i nie są edytowalne w interfejsie (G12w: szczyt w dni robocze 6–21, poza szczytem reszta oraz soboty, niedziele i święta; G13active: strefy zależne od miesiąca).
+
+**G12sezON** ma dwie strefy: *zalecanego poboru* (tania) i *pozostałe godziny*. Godziny strefy zalecanej zależą od sezonu i są takie same we wszystkie dni tygodnia, także w weekendy i święta:
+
+| Sezon | Strefa zalecanego poboru (godziny od–do, zegar ścienny) |
+|---|---|
+| kwiecień–wrzesień | 4–6 oraz 9–17 |
+| październik–marzec | 22–6 oraz 11–13 |
+
+Godziny liczone są wg zegara ściennego (Europe/Warsaw), więc po zmianie czasu strefa przesuwa się razem z zegarem. Stawki sieciowe G12sezON są takie same jak G12 (zalecana = jak noc G12); różnią się wyłącznie godziny stref. Zmiana grupy taryfowej u operatora jest ograniczona (zasadniczo raz na 12 miesięcy), więc sprawdź warunki u swojego OSD, zanim ją wybierzesz.
 
 **Opcje** (Ustawienia → Urządzenia i usługi → Porównanie taryf → Konfiguruj), zapis każdego kroku przeładowuje integrację:
 
 - **VAT i stawki dystrybucyjne:** VAT (domyślnie 0,23) i wszystkie stawki netto presetu.
 - **Tarcza Pstryk:** dla 2026 i 2027 — limit średniej ceny, podstawa (brutto/netto), czy w średniej liczy się opłata handlowa, daty obowiązywania.
-- **Własny cennik sprzedawcy:** jeden cennik (obok wbudowanej oferty kompleksowej, patrz „Oferta kompleksowa”): nazwa, opłata handlowa (zł/mc netto), akcyza (domyślnie 0,005 zł/kWh) i ceny netto energii w strefach wybranych taryf. Taryfa uczestniczy w porównaniu tylko z kompletem stref. Pusta nazwa usuwa cennik.
+- **Własny cennik sprzedawcy:** jeden cennik (obok wbudowanych ofert kompleksowych, patrz „Oferty kompleksowe”): nazwa, opłata handlowa (zł/mc netto), akcyza (domyślnie 0,005 zł/kWh) i ceny netto energii w strefach wybranych taryf. Taryfa uczestniczy w porównaniu tylko z kompletem stref. Pusta nazwa usuwa cennik.
 
 ### Encje
 
@@ -87,7 +96,7 @@ Zmiana okresu przelicza wynik z danych zapisanych lokalnie, **bez zapytań do AP
 | `<scenariusz> — różnica względem obecnej` | `razem` scenariusza minus `razem` obecnego. **Dodatnia = drożej niż obecnie**, ujemna = taniej. Nie ma jej dla scenariusza obecnego. |
 | `kWh w tanich godzinach` / `kWh w drogich godzinach` | Zużycie w tanich i w pozostałych strefach obecnej taryfy (kWh). |
 
-Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G13active*, wbudowana oferta kompleksowa *Enea + G11 / G12 / G12w* (patrz niżej) oraz, jeśli zdefiniujesz własny cennik, `<nazwa cennika> + <taryfa>` dla taryf z kompletem cen.
+Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, wbudowane oferty kompleksowe *Enea prawo wyboru + G11 / G12 / G12w* i *Enea EneoPewność + G11 / G12 / G12w / G12sezON* (patrz niżej) oraz, jeśli zdefiniujesz własny cennik, `<nazwa cennika> + <taryfa>` dla taryf z kompletem cen.
 
 **Atrybuty sensorów** (nazwy bez polskich znaków, wygodne w szablonach):
 
@@ -97,9 +106,11 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G13act
 | `pokrycie` | Udział godzin zmierzonych w godzinach możliwych w okresie (0–1). |
 | `dane_z` | Czas ostatniego udanego pobrania z API (ISO) lub `null`. |
 | `scenariusz` | Klucz scenariusza, np. `pstryk_G12` (tylko sensory `razem` i `roznica`). |
-| `etykieta` | Czytelna nazwa scenariusza, np. `Pstryk + G12`. |
+| `etykieta` | Czytelna nazwa scenariusza, np. `Pstryk + G12` albo `Enea EneoPewność + G12`. |
 | `grupa` | `pstryk` (sprzedaż dynamiczna) albo `kompleksowa` (oferta kompleksowa, także własny cennik). |
 | `sprzedawca` | Nazwa sprzedawcy: `Pstryk`, `Enea` albo nazwa własnego cennika. |
+| `oferta` | Nazwa oferty: `prawo wyboru` albo `EneoPewność` (Enea); pusta dla Pstryk i własnego cennika. |
+| `uwagi` | Lista uwag do oferty (warunki, ważność cennika); pusta dla Pstryk i własnego cennika. |
 | `taryfa` | Taryfa dystrybucyjna scenariusza, np. `G12`. |
 | `obecny` | `true` dla scenariusza obecnej taryfy. |
 | `sprzedaz_przed` | Sprzedaż brutto przed Tarczą. |
@@ -114,9 +125,11 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G13act
 
 Sensory „kWh” mają tylko `okres_od`, `okres_do`, `pokrycie` i `dane_z`.
 
-### Oferta kompleksowa
+### Oferty kompleksowe
 
-Obok scenariuszy Pstryk integracja ma wbudowaną ofertę kompleksową **Enea S.A.** w taryfie „z prawem wyboru sprzedawcy” (dla klienta, który zmienił sprzedawcę i wraca do Enei), 2026: opłata handlowa 10,49 zł/mc netto, akcyza wliczona w ceny.
+Obok scenariuszy Pstryk integracja ma wbudowane dwie oferty kompleksowe **Enea** (w kodzie to katalog ofert; wszystkie ceny są netto **z akcyzą**, VAT jest doliczany do całości).
+
+**1. „Prawo wyboru” (`enea_2026_wybor`)** — taryfa dla klienta, który zmienił sprzedawcę i wraca do Enei, 2026: opłata handlowa 10,49 zł/mc netto.
 
 | Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
 |---|---|
@@ -125,10 +138,29 @@ Obok scenariuszy Pstryk integracja ma wbudowaną ofertę kompleksową **Enea S.A
 | G12w | szczyt 0,5050 · pozaszczyt 0,5050 |
 
 - **Źródło:** „Taryfa dla energii elektrycznej dla klientów z grup taryfowych G korzystających z prawa wyboru sprzedawcy”, Zarządzenie Dyr. Dep. Sprzedaży Enea S.A. nr 558/2025 z 16.12.2025, od 1.01.2026 (`https://www.enea.pl/media/6823/taryfa-g-tpapdf.pdf`). To cennik handlowy, nie zatwierdzany przez URE; nie sprawdzono, czy nowemu klientowi Enea zaproponuje właśnie ten cennik, a nie taryfę URE lub ofertę rynkową. Potwierdź w Enei.
-- **Żaden cennik Enei dla gospodarstw domowych (grupa G) na 2026 nie obejmuje G13active**, więc nie ma scenariusza *Enea + G13active* (brak encji i brak błędu). G13active istnieje tylko po stronie dystrybucji.
+- Nie obejmuje G12sezON ani G13active, więc nie ma scenariuszy *prawo wyboru + G12sezON* ani *+ G13active* (brak encji i brak błędu).
 - W G12w cena energii Enei jest taka sama w szczycie i poza szczytem; zysk z G12w wynika wtedy wyłącznie z dystrybucji.
-- Scenariusze Enei mają `grupa` = `kompleksowa`, `sprzedawca` = `Enea`. Własny cennik ma tę samą `grupę`, a `sprzedawca` to jego nazwa; oba mogą występować jednocześnie.
+
+**2. „EneoPewność” (`enea_eneopewnosc_2026`)** — oferta rynkowa Enei, cennik dla umów zawieranych od 1.10 do 31.12.2026, opłata handlowa 15,94 zł/mc netto.
+
+| Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
+|---|---|
+| G11 | 0,4950 |
+| G12 | dzień 0,5736 · noc 0,3365 |
+| G12w | szczyt 0,6464 · pozaszczyt 0,3459 |
+| G12sezON | pozostałe godziny 0,5841 · zalecany pobór 0,3465 |
+
+- **Opłata i czas trwania:** cena energii i opłata handlowa są stałe przez **36 miesięcy**. Opłata 15,94 zł/mc dotyczy e-faktury (przy fakturze papierowej jest wyższa: 20,01 zł) i obejmuje usługę „Elektryk”, której nie można odłączyć od oferty.
+- **Warunek grupy taryfowej:** przy zawarciu umowy w związku ze zmianą sprzedawcy grupa taryfowa dystrybucji rozliczana bezpośrednio przed zmianą musi być taka sama jak grupa wybrana w nowej umowie. Jeśli dziś masz G12, a chcesz G12sezON, najpierw zmień grupę u operatora; samą zmianą sprzedawcy się nie da.
+- **Ważność cennika:** obowiązuje dla umów zawieranych w IV kwartale 2026. Nie obejmuje G13active.
+- **Źródło:** Cennik oferty EneoPewność 36 miesięcy (nr EP36010330_G) i Regulamin oferty z 1.10.2026, `https://www.enea.pl/eneopewnosc`. To oferta rynkowa; przed decyzją potwierdź warunki w Enei.
+
+Pozostałe informacje:
+
+- Scenariusze Enei mają `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, a oferty rozróżnia atrybut `oferta` i klucz scenariusza. Własny cennik ma tę samą `grupę`, `sprzedawca` to jego nazwa, a `oferta` jest pusta; wszystkie mogą występować jednocześnie.
 - Wybór innego sprzedawcy z katalogu nie ma jeszcze interfejsu; lista sprzedawców zostanie rozszerzona w przyszłych wersjach. Cenniki z 2026 roku obowiązują do końca roku, na 2027 trzeba je zaktualizować.
+
+**Aktualizacja z v0.3: zmiana nazw encji oferty kompleksowej.** Klucz scenariusza zawiera teraz identyfikator oferty: `kompleksowa_G12` zmienił się na `kompleksowa_enea_2026_wybor_G12` (i analogicznie dla G11, G12w, oraz encji `razem` i `roznica`). Po aktualizacji stare encje oferty Enea znikają z rejestru, a w ich miejsce powstają nowe, z nowymi identyfikatorami. **Zaktualizuj automatyzacje, szablony i karty, które odwoływały się do starych encji**. Encje Pstryk i własnego cennika zostają bez zmian.
 
 ### Panel „Porównanie taryf”
 
@@ -177,10 +209,10 @@ Testy publiczne używają wyłącznie danych syntetycznych. Testy oznaczone `ref
 
 This integration computes the electricity cost (**gross**) for a period you choose, across *seller × distribution tariff* scenarios, and helps answer two questions:
 
-1. Is **G11**, **G12w** or **G13active** cheaper than your current tariff (e.g. G12) with unchanged consumption?
+1. Is **G11**, **G12w**, **G12sezON** or **G13active** cheaper than your current tariff (e.g. G12) with unchanged consumption?
 2. Is it worth going back to a seller with a comprehensive contract instead of **Pstryk** dynamic pricing, taking the **Pstryk Shield (Tarcza Pstryk)** rebate into account?
 
-Consumption data and sales costs come from the Pstryk API. Distribution rates come from a preset (Enea Operator 2026: G11, G12, G12w, G13active) that you can edit in the options.
+Consumption data and sales costs come from the Pstryk API. Distribution rates come from a preset (Enea Operator 2026: G11, G12, G12w, G12sezON, G13active) that you can edit in the options.
 
 ### Important caveats
 
@@ -200,7 +232,7 @@ Read these before trusting a result.
 - Electricity meter data is available in the Pstryk API.
 - Home Assistant **2026.8** or newer.
 - **HACS** installed.
-- The preset fits the **Enea Operator** area. In another distribution operator's area (DSO) you can override the distribution rates in the options, but the G12w and G13active zone definitions remain Enea's (they are not editable).
+- The preset fits the **Enea Operator** area. In another distribution operator's area (DSO) you can override the distribution rates in the options, but the G12w, G12sezON and G13active zone definitions remain Enea's (they are not editable).
 
 ### Installation via HACS
 
@@ -221,16 +253,25 @@ Read these before trusting a result.
 | Pstryk API key | Checked with a single request for 1 day of data. Stored in the HA configuration and sent to Pstryk only. |
 | Connection type | 3f or 1f; affects the fixed component of the distribution fee. |
 | Preset | Only Enea Operator 2026 for now. |
-| Current tariff | G11, G12, G12w or G13active. Every "difference vs current" is measured against Pstryk + this tariff. |
+| Current tariff | G11, G12, G12w, G12sezON or G13active. Every "difference vs current" is measured against Pstryk + this tariff. |
 | G12 cheap hours | Hours at which a cheap hour starts (default 22–6 and 13–15). Applies to G12 only. |
 
-G11 has a single all-day zone (all consumption counts as "cheap", "expensive" = 0). The G12w and G13active zones come from the preset and are not editable in the UI (G12w: peak on working days 6–21, off-peak otherwise plus Saturdays, Sundays and public holidays; G13active: zones depend on the month).
+G11 has a single all-day zone (all consumption counts as "cheap", "expensive" = 0). The G12w, G12sezON and G13active zones come from the preset and are not editable in the UI (G12w: peak on working days 6–21, off-peak otherwise plus Saturdays, Sundays and public holidays; G13active: zones depend on the month).
+
+**G12sezON** has two zones: the *recommended-usage* zone (cheap) and *other hours*. The recommended zone depends on the season and is the same every day of the week, weekends and public holidays included:
+
+| Season | Recommended-usage zone (hours from–to, wall-clock) |
+|---|---|
+| April–September | 4–6 and 9–17 |
+| October–March | 22–6 and 11–13 |
+
+Hours follow the wall clock (Europe/Warsaw), so after a clock change the zone moves with the clock. G12sezON network rates are the same as G12 (recommended = like G12 night); only the zone hours differ. Changing the tariff group at the operator is restricted (in general once per 12 months), so check the terms with your DSO before choosing it.
 
 **Options** (Settings → Devices & services → Porównanie taryf → Configure); saving any step reloads the integration:
 
 - **VAT and distribution rates:** VAT (default 0.23) and all net preset rates.
 - **Pstryk Shield:** for 2026 and 2027 — average price limit, basis (gross/net), whether the trading fee counts towards the average, validity dates.
-- **Own seller price list:** one price list (besides the built-in comprehensive offer, see "Comprehensive offer"): name, trading fee (PLN/month net), excise duty (default 0.005 PLN/kWh) and net energy prices per zone for the tariffs you choose. A tariff takes part only with all of its zones filled in. An empty name removes the price list.
+- **Own seller price list:** one price list (besides the built-in comprehensive offers, see "Comprehensive offers"): name, trading fee (PLN/month net), excise duty (default 0.005 PLN/kWh) and net energy prices per zone for the tariffs you choose. A tariff takes part only with all of its zones filled in. An empty name removes the price list.
 
 ### Entities
 
@@ -254,7 +295,7 @@ Changing the period recalculates from locally stored data, **without any API cal
 | `<scenario> — difference vs current` | The scenario's `total` minus the current scenario's `total`. **Positive = more expensive than now**, negative = cheaper. Not created for the current scenario. |
 | `kWh in cheap hours` / `kWh in expensive hours` | Consumption in the cheap and in the remaining zones of the current tariff (kWh). |
 
-The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G13active*, the built-in comprehensive offer *Enea + G11 / G12 / G12w* (see below) and, if you define an own price list, `<price list name> + <tariff>` for the tariffs with a complete set of prices.
+The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, the built-in comprehensive offers *Enea prawo wyboru + G11 / G12 / G12w* and *Enea EneoPewność + G11 / G12 / G12w / G12sezON* (see below) and, if you define an own price list, `<price list name> + <tariff>` for the tariffs with a complete set of prices.
 
 **Sensor attributes** (names are ASCII, convenient in templates):
 
@@ -264,9 +305,11 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G13
 | `pokrycie` | Share of measured hours in the possible hours of the period (0–1). |
 | `dane_z` | Time of the last successful API fetch (ISO) or `null`. |
 | `scenariusz` | Scenario key, e.g. `pstryk_G12` (only the `total` and `difference` sensors). |
-| `etykieta` | Readable scenario name, e.g. `Pstryk + G12`. |
+| `etykieta` | Readable scenario name, e.g. `Pstryk + G12` or `Enea EneoPewność + G12`. |
 | `grupa` | `pstryk` (dynamic sales) or `kompleksowa` (comprehensive offer, own price list included). |
 | `sprzedawca` | Seller name: `Pstryk`, `Enea` or the name of your own price list. |
+| `oferta` | Offer name: `prawo wyboru` or `EneoPewność` (Enea); empty for Pstryk and an own price list. |
+| `uwagi` | List of notes on the offer (conditions, price list validity); empty for Pstryk and an own price list. |
 | `taryfa` | The scenario's distribution tariff, e.g. `G12`. |
 | `obecny` | `true` for the current tariff's scenario. |
 | `sprzedaz_przed` | Gross sales before the Shield. |
@@ -281,9 +324,11 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G13
 
 The "kWh" sensors only have `okres_od`, `okres_do`, `pokrycie` and `dane_z`.
 
-### Comprehensive offer
+### Comprehensive offers
 
-Besides the Pstryk scenarios the integration has a built-in comprehensive offer from **Enea S.A.** under its "right to choose a seller" tariff (for a customer who switched seller and returns to Enea), 2026: trading fee 10.49 PLN/month net, excise duty included in the prices.
+Besides the Pstryk scenarios the integration has two built-in comprehensive offers from **Enea** (in code this is an offer catalogue; all prices are net **including excise duty**, VAT is added to the whole).
+
+**1. "Prawo wyboru" ("right to choose", `enea_2026_wybor`)** — the tariff for a customer who switched seller and returns to Enea, 2026: trading fee 10.49 PLN/month net.
 
 | Tariff | Energy prices (PLN/kWh net, excise included) |
 |---|---|
@@ -292,10 +337,29 @@ Besides the Pstryk scenarios the integration has a built-in comprehensive offer 
 | G12w | peak 0.5050 · off-peak 0.5050 |
 
 - **Source:** "Tariff for electricity for customers of the G tariff groups using the right to choose a seller" (Polish title: "Taryfa dla energii elektrycznej dla klientów z grup taryfowych G korzystających z prawa wyboru sprzedawcy"), Enea S.A. order no. 558/2025 of 16 Dec 2025, in force from 1 Jan 2026 (`https://www.enea.pl/media/6823/taryfa-g-tpapdf.pdf`). It is a commercial price list not approved by the regulator (URE); it has not been verified whether Enea would offer a returning customer this price list rather than the URE tariff or a market offer. Confirm with Enea.
-- **None of Enea's 2026 household (G group) price lists includes G13active**, so there is no *Enea + G13active* scenario (no entity and no error). G13active exists on the distribution side only.
+- It covers neither G12sezON nor G13active, so there are no *prawo wyboru + G12sezON* or *+ G13active* scenarios (no entity and no error).
 - Under G12w Enea's energy price is the same in peak and off-peak; the gain from G12w then comes from distribution alone.
-- Enea scenarios have `grupa` = `kompleksowa`, `sprzedawca` = `Enea`. An own price list has the same `grupa`, with its name as `sprzedawca`; both can exist at once.
+
+**2. "EneoPewność" (`enea_eneopewnosc_2026`)** — Enea's market offer, a price list for contracts signed from 1 Oct to 31 Dec 2026, trading fee 15.94 PLN/month net.
+
+| Tariff | Energy prices (PLN/kWh net, excise included) |
+|---|---|
+| G11 | 0.4950 |
+| G12 | day 0.5736 · night 0.3365 |
+| G12w | peak 0.6464 · off-peak 0.3459 |
+| G12sezON | other hours 0.5841 · recommended usage 0.3465 |
+
+- **Fee and duration:** the energy price and the trading fee are fixed for **36 months**. The 15.94 PLN/month fee applies to e-invoicing (a paper invoice costs more: 20.01 PLN) and includes the "Elektryk" (electrician) service, which cannot be detached from the offer.
+- **Tariff group condition:** when the contract is concluded as part of a seller change, the distribution tariff group billed immediately before the change must be the same as the group chosen in the new contract. If you have G12 today and want G12sezON, change the group at the operator first; a seller change alone will not do.
+- **Price list validity:** it applies to contracts concluded in Q4 2026. It does not cover G13active.
+- **Source:** the EneoPewność 36-month price list (no. EP36010330_G) and the offer's terms of 1 Oct 2026, `https://www.enea.pl/eneopewnosc`. It is a market offer; confirm the terms with Enea before deciding.
+
+Other notes:
+
+- Enea scenarios have `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, and the offers are told apart by the `oferta` attribute and the scenario key. An own price list has the same `grupa`, its name as `sprzedawca` and an empty `oferta`; all of them can exist at once.
 - Choosing another seller from the catalogue has no UI yet; the list of sellers will grow in future versions. The 2026 price lists apply until the end of the year and need updating for 2027.
+
+**Upgrading from v0.3: the comprehensive-offer entities are renamed.** The scenario key now contains the offer id: `kompleksowa_G12` became `kompleksowa_enea_2026_wybor_G12` (likewise for G11, G12w, and for both the `razem`/total and `roznica`/difference entities). After the update the old Enea-offer entities disappear from the registry and new ones, with new IDs, are created in their place. **Update any automations, templates and cards that referenced the old entities**. Pstryk and own-price-list entities are unchanged.
 
 ### "Tariff comparison" panel
 

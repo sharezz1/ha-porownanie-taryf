@@ -112,6 +112,32 @@ async def test_atrybuty_grup_scenariuszy(hass, wpis, pobierz):
     assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G13active_roznica") is None
 
 
+async def test_atrybuty_oferty_i_uwag(hass, wpis, pobierz):
+    await _setup(hass, wpis)
+
+    a = _stan(hass, wpis, "sensor", "kompleksowa_enea_eneopewnosc_2026_G12sezON_razem").attributes
+    assert (a["grupa"], a["sprzedawca"], a["oferta"], a["taryfa"]) == ("kompleksowa", "Enea", "EneoPewność", "G12sezON")
+    assert a["etykieta"] == "Enea EneoPewność + G12sezON"
+    assert len(a["uwagi"]) == 3 and all(isinstance(u, str) and u for u in a["uwagi"])
+    assert "36 miesięcy" in a["uwagi"][0] and "grupa taryfowa" in a["uwagi"][1] and "31.12.2026" in a["uwagi"][2]
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_eneopewnosc_2026_G12sezON_roznica").attributes["oferta"] == "EneoPewność"
+
+    p = _stan(hass, wpis, "sensor", "pstryk_G12sezON_razem").attributes
+    assert (p["oferta"], p["uwagi"]) == ("", [])
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12sezON_razem") is None  # prawo wyboru nie ma G12sezON
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_razem").attributes["oferta"] == "prawo wyboru"
+
+
+async def test_wlasny_cennik_bez_oferty_i_uwag(hass, wpis, pobierz):
+    hass.config_entries.async_update_entry(
+        wpis, options={"cennik": {"nazwa": "X", "oplata_mc": 10, "akcyza": 0.005, "ceny": {"G12": {"dzien": 0.6, "noc": 0.4}}}}
+    )
+    await _setup(hass, wpis)
+
+    a = _stan(hass, wpis, "sensor", "cennik_G12_razem").attributes
+    assert (a["oferta"], a["uwagi"]) == ("", [])
+
+
 async def test_wlasny_cennik_to_grupa_kompleksowa(hass, wpis, pobierz):
     hass.config_entries.async_update_entry(
         wpis, options={"cennik": {"nazwa": "X", "oplata_mc": 10, "akcyza": 0.005, "ceny": {"G12": {"dzien": 0.6, "noc": 0.4}}}}
@@ -227,3 +253,21 @@ async def test_osierocone_encje_cennika_znikaja(hass, hass_storage):
     assert _eid(hass, wpis, "sensor", "cennik_G12_roznica") is None
     assert _eid(hass, wpis, "sensor", "pstryk_G12_razem")  # reszta zostaje
     assert rejestr.async_get(_eid(hass, wpis, "select", "okres"))
+
+
+async def test_encje_v03_oferty_kompleksowej_znikaja_po_aktualizacji(hass, hass_storage):
+    """v0.3: klucz `kompleksowa_<T>`; v0.4: `kompleksowa_<id oferty>_<T>`. Stare wpisy rejestru sprząta async_setup_entry."""
+    wpis = MockConfigEntry(domain=DOMAIN, data=DATA_WPISU, title="Porównanie taryf")
+    wpis.add_to_hass(hass)
+    zapisz_magazyn(hass_storage, wpis.entry_id, wrzesien())
+    rejestr = er.async_get(hass)
+    stare = [f"{wpis.entry_id}_kompleksowa_G12_{r}" for r in ("razem", "roznica")]
+    for uid in stare:
+        rejestr.async_get_or_create("sensor", DOMAIN, uid, config_entry=wpis)
+    with patch(POBIERZ, new_callable=AsyncMock, return_value=[]):
+        await _setup(hass, wpis)
+
+    assert all(rejestr.async_get_entity_id("sensor", DOMAIN, uid) is None for uid in stare)
+    assert _eid(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_razem")
+    assert _eid(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_roznica")
+    assert not [e for e in rejestr.entities.values() if e.unique_id.endswith("_kompleksowa_G12_razem")]
