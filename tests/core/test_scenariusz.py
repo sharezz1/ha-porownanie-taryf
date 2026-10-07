@@ -3,8 +3,9 @@ from datetime import date, datetime
 import pytest
 
 from custom_components.porownanie_taryf.core import TZ, HourlyReading
-from custom_components.porownanie_taryf.core.presety import zbuduj_konfiguracje
+from custom_components.porownanie_taryf.core.presety import SPRZEDAWCY, zbuduj_konfiguracje
 from custom_components.porownanie_taryf.core.scenariusz import (
+    cennik_scenariusza,
     domyslna_data,
     etykieta,
     godzin_w_okresie,
@@ -36,20 +37,33 @@ def test_godziny_i_domyslna_data():
 
 
 def test_klucze_i_etykiety():
-    assert klucze_scenariuszy(K) == ["pstryk_G11", "pstryk_G12", "pstryk_G12w", "pstryk_G13active",
-                                     "kompleksowa_G11", "kompleksowa_G12", "kompleksowa_G12w", "cennik_G12"]
+    assert klucze_scenariuszy(K) == [
+        "pstryk_G11", "pstryk_G12", "pstryk_G12w", "pstryk_G12sezON", "pstryk_G13active",
+        "kompleksowa_enea_2026_wybor_G11", "kompleksowa_enea_2026_wybor_G12", "kompleksowa_enea_2026_wybor_G12w",
+        "kompleksowa_enea_eneopewnosc_2026_G11", "kompleksowa_enea_eneopewnosc_2026_G12",
+        "kompleksowa_enea_eneopewnosc_2026_G12w", "kompleksowa_enea_eneopewnosc_2026_G12sezON",
+        "cennik_G12"]
     assert etykieta("pstryk_G12", K) == "Pstryk + G12"
-    assert etykieta("kompleksowa_G12", K) == "Enea + G12"
+    assert etykieta("kompleksowa_enea_2026_wybor_G12", K) == "Enea prawo wyboru + G12"
+    assert etykieta("kompleksowa_enea_eneopewnosc_2026_G12sezON", K) == "Enea EneoPewność + G12sezON"
     assert etykieta("cennik_G12", K) == "Enea + G12"  # własny cennik "Enea" z K
 
 
 def test_grupa_sprzedawca_taryfa():
     assert grupa_scenariusza("pstryk_G12") == "pstryk"
-    assert grupa_scenariusza("kompleksowa_G12") == grupa_scenariusza("cennik_G12") == "kompleksowa"
+    assert grupa_scenariusza("kompleksowa_enea_2026_wybor_G12") == grupa_scenariusza("cennik_G12") == "kompleksowa"
     assert sprzedawca_scenariusza("pstryk_G12", K) == "Pstryk"
-    assert sprzedawca_scenariusza("kompleksowa_G11", K) == "Enea"
+    assert sprzedawca_scenariusza("kompleksowa_enea_eneopewnosc_2026_G11", K) == "Enea"
     assert sprzedawca_scenariusza("cennik_G12", K) == "Enea"
     assert taryfa_scenariusza("pstryk_G13active") == "G13active" and taryfa_scenariusza("cennik_G12") == "G12"
+    assert taryfa_scenariusza("kompleksowa_enea_eneopewnosc_2026_G12sezON") == "G12sezON"
+
+
+def test_cennik_scenariusza():
+    assert cennik_scenariusza("pstryk_G12", K) is None
+    assert cennik_scenariusza("kompleksowa_enea_2026_wybor_G12", K) is SPRZEDAWCY["enea_2026_wybor"]
+    assert cennik_scenariusza("kompleksowa_enea_eneopewnosc_2026_G12sezON", K) is SPRZEDAWCY["enea_eneopewnosc_2026"]
+    assert cennik_scenariusza("cennik_G12", K) is K.cennik
 
 
 def test_policz_wrzesien():
@@ -63,10 +77,22 @@ def test_policz_wrzesien():
     assert c.tarcza == 0.0 and c.sprzedaz_przed == pytest.approx(473.46) and c.razem == pytest.approx(473.46 + 267.98994)
     assert g.ostrzezenia == ()
     assert w.scenariusze["pstryk_G11"].razem == pytest.approx(745.93596)
-    kg12, kg11, kg12w = (w.scenariusze[f"kompleksowa_{t}"] for t in ("G12", "G11", "G12w"))
+    assert w.scenariusze["pstryk_G12sezON"].razem == pytest.approx(710.78994)
+    kg12, kg11, kg12w = (w.scenariusze[f"kompleksowa_enea_2026_wybor_{t}"] for t in ("G12", "G11", "G12w"))
     assert kg12.razem == pytest.approx(714.32004) and kg12.tarcza == 0.0 and kg12.sprzedaz_przed == pytest.approx(446.3301)
     assert kg11.razem == pytest.approx(763.26666) and kg12w.razem == pytest.approx(713.89569)
-    assert "kompleksowa_G13active" not in w.scenariusze
+    assert "kompleksowa_enea_2026_wybor_G12sezON" not in w.scenariusze
+    assert not any(k.endswith("G13active") for k in w.scenariusze if k.startswith("kompleksowa"))
+    for t, brutto, razem in (("G11", 457.9782, 761.11416), ("G12", 440.09646, 708.0864),
+                             ("G12w", 447.90819, 701.67318), ("G12sezON", 449.21076, 717.2007)):
+        e = w.scenariusze[f"kompleksowa_enea_eneopewnosc_2026_{t}"]
+        assert e.sprzedaz_przed == pytest.approx(brutto) and e.razem == pytest.approx(razem) and e.tarcza == 0.0, t
+
+
+def test_policz_obecna_g12sezon():
+    k = zbuduj_konfiguracje({"uklad": "3f", "preset": "enea_2026", "taryfa": "G12sezON"}, {})
+    w = policz(wrzesien(), date(2026,9,1), date(2026,9,30), k)
+    assert w.obecny == "pstryk_G12sezON" and (w.kwh_tanie, w.kwh_drogie) == (300.0, 420.0)
 
 
 def test_policz_obecna_g11():

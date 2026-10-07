@@ -59,12 +59,15 @@
           "G12_noc": "G12, night zone (PLN/kWh)",
           "G12w_szczyt": "G12w, peak (PLN/kWh)",
           "G12w_pozaszczyt": "G12w, off-peak (PLN/kWh)",
+          "G12sezON_zalecana": "G12sezON, recommended-usage zone (PLN/kWh)",
+          "G12sezON_pozostale": "G12sezON, other hours (PLN/kWh)",
           "G13active_ograniczanie": "G13active, ograniczanie zone (PLN/kWh)",
           "G13active_pozostale": "G13active, pozostałe zone (PLN/kWh)",
           "G13active_pobor": "G13active, pobór zone (PLN/kWh)",
           "ssv_G11": "G11, fixed component (PLN/month)",
           "ssv_G12": "G12, fixed component (PLN/month)",
           "ssv_G12w": "G12w, fixed component (PLN/month)",
+          "ssv_G12sezON": "G12sezON, fixed network charge (PLN/month)",
           "ssv_G13active": "G13active, fixed component (PLN/month)",
           "sosj": "Quality fee (PLN/kWh)",
           "oze": "Renewables fee (PLN/kWh)",
@@ -77,6 +80,7 @@
           "ssv_G11": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
           "ssv_G12": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
           "ssv_G12w": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
+          "ssv_G12sezON": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
           "ssv_G13active": "Depends on the connection type (1f/3f); the preset default matches the type you chose.",
           "moc": "Depends on yearly consumption (2800 kWh/year threshold); enter the value that applies to you."
         }
@@ -121,6 +125,8 @@
           "G12_noc": "G12, night: energy price (PLN/kWh net)",
           "G12w_szczyt": "G12w, peak: energy price (PLN/kWh net)",
           "G12w_pozaszczyt": "G12w, off-peak: energy price (PLN/kWh net)",
+          "G12sezON_zalecana": "G12sezON, recommended: energy price (PLN/kWh net)",
+          "G12sezON_pozostale": "G12sezON, other: energy price (PLN/kWh net)",
           "G13active_ograniczanie": "G13active, ograniczanie: energy price (PLN/kWh net)",
           "G13active_pozostale": "G13active, pozostałe: energy price (PLN/kWh net)",
           "G13active_pobor": "G13active, pobór: energy price (PLN/kWh net)"

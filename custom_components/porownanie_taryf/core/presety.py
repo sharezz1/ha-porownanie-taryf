@@ -7,14 +7,15 @@ from typing import Any
 
 from .strefy import TANIE_G12_DOMYSLNE
 
-TARYFY = ("G11", "G12", "G12w", "G13active")
+TARYFY = ("G11", "G12", "G12w", "G12sezON", "G13active")
 STREFY: dict[str, tuple[str, ...]] = {
     "G11": ("calodobowa",),
     "G12": ("dzien", "noc"),
     "G12w": ("szczyt", "pozaszczyt"),
+    "G12sezON": ("pozostale", "zalecana"),
     "G13active": ("ograniczanie", "pozostale", "pobor"),
 }
-TANIA_STREFA: dict[str, str] = {"G11": "calodobowa", "G12": "noc", "G12w": "pozaszczyt", "G13active": "pobor"}
+TANIA_STREFA: dict[str, str] = {"G11": "calodobowa", "G12": "noc", "G12w": "pozaszczyt", "G12sezON": "zalecana", "G13active": "pobor"}
 
 CONF_UKLAD = "uklad"  # "3f" | "1f"
 CONF_PRESET = "preset"  # "enea_2026"
@@ -24,11 +25,10 @@ OPT_VAT = "vat"
 OPT_STAWKI = "stawki"
 OPT_TARCZA = "tarcza"
 OPT_CENNIK = "cennik"
-OPT_SPRZEDAWCA = "sprzedawca"  # klucz z SPRZEDAWCY; bez UI w v0.3.0
 
 _STALE_ENEA_2026 = {
-    "3f": {"G11": 10.41, "G12": 14.56, "G12w": 26.23, "G13active": 14.56},
-    "1f": {"G11": 7.45, "G12": 9.59, "G12w": 16.85, "G13active": 9.59},
+    "3f": {"G11": 10.41, "G12": 14.56, "G12w": 26.23, "G12sezON": 14.56, "G13active": 14.56},
+    "1f": {"G11": 7.45, "G12": 9.59, "G12w": 16.85, "G12sezON": 9.59, "G13active": 9.59},
 }
 
 
@@ -60,6 +60,8 @@ class Cennik:
     oplata_mc: float
     akcyza: float
     ceny: dict[str, dict[str, float]]  # taryfa -> strefa -> zł/kWh netto
+    oferta: str = ""  # nazwa oferty w katalogu; własny cennik jej nie ma
+    uwagi: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,18 +72,31 @@ class Konfiguracja:
     stawki: StawkiDystrybucji
     tarcza: tuple[ParametryTarczy, ...]
     cennik: Cennik | None
-    kompleksowa: Cennik  # oferta kompleksowa wybranego sprzedawcy z katalogu
+    kompleksowe: dict[str, Cennik]  # wszystkie oferty z katalogu, liczone równolegle
 
 
-# Katalog ofert kompleksowych (netto). Sprzedawca bez danej taryfy = brak scenariusza.
+# Katalog ofert kompleksowych. Ceny netto Z AKCYZĄ (stąd akcyza=0.0), VAT liczony od całości.
+# Oferta bez danej taryfy = brak scenariusza. Kolejność wpisów = kolejność w panelu przy remisie.
 SPRZEDAWCY: dict[str, Cennik] = {
     "enea_2026_wybor": Cennik("Enea", 10.49, 0.0, {
         "G11": {"calodobowa": 0.5050},
         "G12": {"dzien": 0.5900, "noc": 0.3486},
         "G12w": {"szczyt": 0.5050, "pozaszczyt": 0.5050},
-    }),
+    }, oferta="prawo wyboru", uwagi=(
+        "Cennik dla klientów, którzy zmieniali sprzedawcę — przed decyzją potwierdź ofertę w Enei.",
+    )),
+    "enea_eneopewnosc_2026": Cennik("Enea", 15.94, 0.0, {
+        "G11": {"calodobowa": 0.4950},
+        "G12": {"dzien": 0.5736, "noc": 0.3365},
+        "G12w": {"szczyt": 0.6464, "pozaszczyt": 0.3459},
+        "G12sezON": {"pozostale": 0.5841, "zalecana": 0.3465},
+    }, oferta="EneoPewność", uwagi=(
+        "Cena energii i opłata handlowa stałe przez 36 miesięcy; opłata 15,94 zł/mies. przy e-fakturze "
+        "(20,01 zł przy fakturze papierowej), obejmuje usługę „Elektryk”.",
+        "Przy zmianie sprzedawcy grupa taryfowa musi być taka jak dotychczasowa — na G12sezON najpierw zmiana grupy u operatora.",
+        "Cennik dla umów zawieranych od 1.10 do 31.12.2026.",
+    )),
 }
-SPRZEDAWCA_DOMYSLNY = "enea_2026_wybor"
 
 TARCZA_DOMYSLNA: dict[str, ParametryTarczy] = {
     "2026": ParametryTarczy(0.61, "brutto", True, date(2026, 1, 1), date(2026, 12, 31), True),
@@ -95,6 +110,7 @@ def stawki_enea_2026(uklad: str) -> StawkiDystrybucji:
             "G11": {"calodobowa": 0.2456},
             "G12": {"dzien": 0.2779, "noc": 0.0913},
             "G12w": {"szczyt": 0.2702, "pozaszczyt": 0.0813},
+            "G12sezON": {"pozostale": 0.2779, "zalecana": 0.0913},
             "G13active": {"ograniczanie": 0.3032, "pozostale": 0.2456, "pobor": 0.0730},
         },
         stale=dict(_STALE_ENEA_2026[uklad]),
@@ -135,5 +151,5 @@ def zbuduj_konfiguracje(data: Mapping[str, Any], options: Mapping[str, Any]) -> 
         stawki=stawki,
         tarcza=tarcza,
         cennik=Cennik(c["nazwa"], c["oplata_mc"], c["akcyza"], c["ceny"]) if c else None,
-        kompleksowa=SPRZEDAWCY.get(options.get(OPT_SPRZEDAWCA), SPRZEDAWCY[SPRZEDAWCA_DOMYSLNY]),
+        kompleksowe=SPRZEDAWCY,
     )

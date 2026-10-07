@@ -1,4 +1,4 @@
-"""Strefy czasowe taryf Enea Operator (G11, G12, G12w, G13active) wg zegara ściennego Europe/Warsaw."""
+"""Strefy czasowe taryf Enea Operator (G11, G12, G12w, G12sezON, G13active) wg zegara ściennego Europe/Warsaw."""
 
 from datetime import date, datetime, timedelta, timezone
 from functools import cache
@@ -22,6 +22,12 @@ G13_STREFY = {
     10: {"ograniczanie": [(7, 9), (16, 23)],  "pobor": [(10, 16)]},
     11: {"ograniczanie": [(7, 9), (14, 21)],  "pobor": [(23, 24), (0, 6)]},
     12: {"ograniczanie": [(7, 10), (13, 20)], "pobor": [(23, 24), (0, 6)]},
+}
+
+# G12sezON: strefa zalecanego poboru zależy od sezonu (miesiące 4-9 lato, reszta zima), każdy dzień jednakowo.
+G12SEZON_ZALECANE = {
+    "lato": frozenset({4, 5, 9, 10, 11, 12, 13, 14, 15, 16}),
+    "zima": frozenset({22, 23, 0, 1, 2, 3, 4, 5, 11, 12}),
 }
 
 
@@ -59,6 +65,9 @@ def strefa(taryfa: str, ts: datetime, tanie_g12: frozenset[int] = TANIE_G12_DOMY
         if ts.weekday() >= 5 or ts.date() in swieta(ts.year):
             return "pozaszczyt"
         return "szczyt" if 6 <= ts.hour < 21 else "pozaszczyt"
+    if taryfa == "G12sezON":
+        godziny = G12SEZON_ZALECANE["lato" if 4 <= ts.month <= 9 else "zima"]
+        return "zalecana" if ts.hour in godziny else "pozostale"
     if taryfa == "G13active":  # nie wyróżnia weekendów
         cfg = G13_STREFY[ts.month]
         for nazwa in ("ograniczanie", "pobor"):

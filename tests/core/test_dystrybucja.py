@@ -15,6 +15,7 @@ S = stawki_enea_2026("3f")
     ("G11", {"calodobowa": 720}, 246.452, 303.13596),
     ("G12", {"noc": 300, "dzien": 420}, 217.878, 267.98994),
     ("G12w", {"pozaszczyt": 390, "szczyt": 330}, 206.313, 253.76499),
+    ("G12sezON", {"pozostale": 420, "zalecana": 300}, 217.878, 267.98994),
     ("G13active", {"pozostale": 270, "ograniczanie": 270, "pobor": 180}, 235.086, 289.15578)])
 def test_pelny_wrzesien(taryfa, strefy, netto, brutto):
     w = dystrybucja(wrzesien(), taryfa, S, TANIE_G12_DOMYSLNE, 0.23)

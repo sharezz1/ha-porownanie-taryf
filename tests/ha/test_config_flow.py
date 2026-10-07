@@ -179,7 +179,7 @@ async def test_opcje_stawki(hass):
     assert wpis.options["vat"] == 0.23
     assert wpis.options["stawki"]["G12_dzien"] == 0.30
     assert wpis.options["stawki"]["G12_noc"] == 0.0913  # reszta domyślna
-    assert len(wpis.options["stawki"]) == 17
+    assert len(wpis.options["stawki"]) == 20
 
 
 async def test_opcje_stawki_g11(hass):

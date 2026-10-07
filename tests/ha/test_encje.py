@@ -103,13 +103,13 @@ async def test_atrybuty_grup_scenariuszy(hass, wpis, pobierz):
     for suffix, oczekiwane in {
         "pstryk_G11_razem": ("pstryk", "Pstryk", "G11", "Pstryk + G11"),
         "pstryk_G12w_roznica": ("pstryk", "Pstryk", "G12w", "Pstryk + G12w"),
-        "kompleksowa_G12_razem": ("kompleksowa", "Enea", "G12", "Enea + G12"),
-        "kompleksowa_G12w_roznica": ("kompleksowa", "Enea", "G12w", "Enea + G12w"),
+        "kompleksowa_enea_2026_wybor_G12_razem": ("kompleksowa", "Enea", "G12", "Enea prawo wyboru + G12"),
+        "kompleksowa_enea_2026_wybor_G12w_roznica": ("kompleksowa", "Enea", "G12w", "Enea prawo wyboru + G12w"),
     }.items():
         a = _stan(hass, wpis, "sensor", suffix).attributes
         assert (a["grupa"], a["sprzedawca"], a["taryfa"], a["etykieta"]) == oczekiwane, suffix
-    assert _stan(hass, wpis, "sensor", "kompleksowa_G13active_razem") is None  # Enea nie ma G13active
-    assert _stan(hass, wpis, "sensor", "kompleksowa_G13active_roznica") is None
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G13active_razem") is None  # Enea nie ma G13active
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G13active_roznica") is None
 
 
 async def test_wlasny_cennik_to_grupa_kompleksowa(hass, wpis, pobierz):
@@ -120,7 +120,7 @@ async def test_wlasny_cennik_to_grupa_kompleksowa(hass, wpis, pobierz):
 
     a = _stan(hass, wpis, "sensor", "cennik_G12_razem").attributes
     assert (a["grupa"], a["sprzedawca"], a["taryfa"], a["etykieta"]) == ("kompleksowa", "X", "G12", "X + G12")
-    assert _stan(hass, wpis, "sensor", "kompleksowa_G12_razem").attributes["sprzedawca"] == "Enea"  # oba naraz
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_razem").attributes["sprzedawca"] == "Enea"  # oba naraz
 
 
 async def test_select_przelicza_bez_api(hass, wpis, pobierz):

@@ -47,6 +47,18 @@ def test_g13active(ts, exp):
     assert strefa("G13active", ts) == exp
 
 
+@pytest.mark.parametrize("ts,exp", [
+    ((2026, 7, 15, 5), "zalecana"), ((2026, 7, 15, 6), "pozostale"), ((2026, 7, 15, 9), "zalecana"),
+    ((2026, 7, 15, 16), "zalecana"), ((2026, 7, 15, 17), "pozostale"),
+    ((2026, 10, 15, 12), "zalecana"), ((2026, 10, 15, 13), "pozostale"), ((2026, 10, 15, 22), "zalecana"),
+    ((2026, 10, 15, 6), "pozostale"),
+    ((2026, 3, 31, 10), "pozostale"), ((2026, 4, 1, 10), "zalecana"),
+    ((2026, 9, 30, 10), "zalecana"), ((2026, 10, 1, 10), "pozostale"),
+    ((2026, 7, 19, 12), "zalecana")])  # ostatnia: niedziela, bez rozróżnienia dni
+def test_g12sezon(ts, exp):
+    assert strefa("G12sezON", datetime(*ts, tzinfo=TZ)) == exp
+
+
 def test_dst_wejscie_utc_liczone_wg_zegara_sciennego():
     assert strefa("G12", datetime(2026, 3, 29, 20, tzinfo=timezone.utc)) == "noc"   # 22:00 CEST
     assert strefa("G12", datetime(2026, 10, 25, 4, tzinfo=timezone.utc)) == "noc"   # 05:00 CET

@@ -59,12 +59,15 @@
           "G12_noc": "G12, strefa nocna (zł/kWh)",
           "G12w_szczyt": "G12w, szczyt (zł/kWh)",
           "G12w_pozaszczyt": "G12w, pozaszczyt (zł/kWh)",
+          "G12sezON_zalecana": "G12sezON — strefa zalecanego poboru (zł/kWh)",
+          "G12sezON_pozostale": "G12sezON — pozostałe godziny (zł/kWh)",
           "G13active_ograniczanie": "G13active, ograniczanie (zł/kWh)",
           "G13active_pozostale": "G13active, pozostałe (zł/kWh)",
           "G13active_pobor": "G13active, pobór (zł/kWh)",
           "ssv_G11": "G11, składnik stały (zł/mc)",
           "ssv_G12": "G12, składnik stały (zł/mc)",
           "ssv_G12w": "G12w, składnik stały (zł/mc)",
+          "ssv_G12sezON": "G12sezON — opłata stała sieciowa (zł/mies.)",
           "ssv_G13active": "G13active, składnik stały (zł/mc)",
           "sosj": "Opłata jakościowa (zł/kWh)",
           "oze": "Opłata OZE (zł/kWh)",
@@ -77,6 +80,7 @@
           "ssv_G11": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
           "ssv_G12": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
           "ssv_G12w": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
+          "ssv_G12sezON": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
           "ssv_G13active": "Zależy od układu przyłącza (1f/3f); domyślna wartość z presetu pasuje do wybranego układu.",
           "moc": "Zależy od rocznego zużycia (próg 2800 kWh/rok); wpisz wartość właściwą dla siebie."
         }
@@ -121,6 +125,8 @@
           "G12_noc": "G12, noc: cena energii (zł/kWh netto)",
           "G12w_szczyt": "G12w, szczyt: cena energii (zł/kWh netto)",
           "G12w_pozaszczyt": "G12w, pozaszczyt: cena energii (zł/kWh netto)",
+          "G12sezON_zalecana": "G12sezON, zalecana: cena energii (zł/kWh netto)",
+          "G12sezON_pozostale": "G12sezON, pozostałe: cena energii (zł/kWh netto)",
           "G13active_ograniczanie": "G13active, ograniczanie: cena energii (zł/kWh netto)",
           "G13active_pozostale": "G13active, pozostałe: cena energii (zł/kWh netto)",
           "G13active_pobor": "G13active, pobór: cena energii (zł/kWh netto)"

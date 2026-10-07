@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from . import TZ, HourlyReading
 from .dystrybucja import dystrybucja
-from .presety import TANIA_STREFA, TARYFY, Konfiguracja
+from .presety import TANIA_STREFA, TARYFY, Cennik, Konfiguracja
 from .sprzedaz import sprzedaz_cennik, sprzedaz_pstryk
 from .tarcza import tarcza
 
@@ -65,14 +65,15 @@ def domyslna_data(dzis: date) -> date:
 
 def klucze_scenariuszy(k: Konfiguracja) -> list[str]:
     klucze = [f"pstryk_{t}" for t in TARYFY]
-    klucze += [f"kompleksowa_{t}" for t in TARYFY if t in k.kompleksowa.ceny]
+    for id_, c in k.kompleksowe.items():
+        klucze += [f"kompleksowa_{id_}_{t}" for t in TARYFY if t in c.ceny]
     if k.cennik:
         klucze += [f"cennik_{t}" for t in TARYFY if t in k.cennik.ceny]
     return klucze
 
 
 def taryfa_scenariusza(klucz: str) -> str:
-    return klucz.split("_", 1)[1]
+    return klucz.rsplit("_", 1)[1]
 
 
 def grupa_scenariusza(klucz: str) -> str:
@@ -80,13 +81,24 @@ def grupa_scenariusza(klucz: str) -> str:
     return "pstryk" if klucz.startswith("pstryk_") else "kompleksowa"
 
 
+def cennik_scenariusza(klucz: str, k: Konfiguracja) -> Cennik | None:
+    """Wpis katalogu lub własny cennik; None dla Pstryka."""
+    if klucz.startswith("pstryk_"):
+        return None
+    if klucz.startswith("kompleksowa_"):
+        return k.kompleksowe[klucz.removeprefix("kompleksowa_").rsplit("_", 1)[0]]
+    return k.cennik
+
+
 def sprzedawca_scenariusza(klucz: str, k: Konfiguracja) -> str:
-    rodzaj = klucz.split("_", 1)[0]
-    return {"pstryk": "Pstryk", "kompleksowa": k.kompleksowa.nazwa}.get(rodzaj) or k.cennik.nazwa
+    cennik = cennik_scenariusza(klucz, k)
+    return "Pstryk" if cennik is None else cennik.nazwa
 
 
 def etykieta(klucz: str, k: Konfiguracja) -> str:
-    return f"{sprzedawca_scenariusza(klucz, k)} + {taryfa_scenariusza(klucz)}"
+    cennik = cennik_scenariusza(klucz, k)
+    kto = "Pstryk" if cennik is None else f"{cennik.nazwa} {cennik.oferta}".strip()
+    return f"{kto} + {taryfa_scenariusza(klucz)}"
 
 
 def policz(wszystkie: Sequence[HourlyReading], od: date, do: date, k: Konfiguracja) -> Wynik:
@@ -106,12 +118,12 @@ def policz(wszystkie: Sequence[HourlyReading], od: date, do: date, k: Konfigurac
 
     scenariusze: dict[str, WynikScenariusza] = {}
     for klucz in klucze_scenariuszy(k):
-        rodzaj, t = klucz.split("_", 1)
-        if rodzaj == "pstryk":
+        t = taryfa_scenariusza(klucz)
+        cennik = cennik_scenariusza(klucz, k)
+        if cennik is None:
             s, r_brutto, r_netto, szacunek = pstryk, rabat.rabat, rabat.rabat_netto, rabat.szacunek
             ostrzezenia = wspolne.union(rabat.ostrzezenia)
         else:
-            cennik = k.kompleksowa if rodzaj == "kompleksowa" else k.cennik
             s, r_brutto, r_netto, szacunek = sprzedaz_cennik(odczyty, t, cennik, k.tanie_g12, k.vat), 0.0, 0.0, False
             ostrzezenia = wspolne
         d = dystr[t]
