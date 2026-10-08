@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  htmlWynikow, kluczRenderu, kwota, naTaryfy, nazwaOkresu, podsumowanie, przesun, tekst, tekstOstrzezenia, udzialy,
+  etykietaOferty, htmlCenSekcji1, htmlCenSekcji2, htmlWynikow, kluczRenderu, komorkaCeny, kwota, nazwaStrefy, widokSekcji2, naTaryfy, nazwaOkresu, podsumowanie, przesun, tekst, tekstOstrzezenia, udzialy,
   werdyktKompleksowa, werdyktPstryk, zbierzDane,
 } from "../../custom_components/porownanie_taryf/frontend/panel.js";
 
@@ -383,4 +383,176 @@ test("własny cennik nie dostaje uwag katalogu także samotnie", () => {
 test("brak atrybutu taryfa: taryfa = ostatni człon klucza (nowe klucze kompleksowa_<id>_<T>)", () => {
   const h = hassZ({ scenariusze: [G12, ["kompleksowa_enea_eneopewnosc_2026_G12", "Enea EneoPewność + G12", 700, 400, 300, 0, false, { grupa: "kompleksowa", sprzedawca: "Enea" }]] });
   assert.equal(zbierzDane(h).kompleksowa[0].taryfa, "G12");
+});
+
+// --- v0.5.0: lista „Sprzedawca” filtruje sekcję 2, rozwijane tabele cen (brutto, pod spodem netto) ---
+
+const WYBOR_OPCJE = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026", "cennik"];
+// syntetyczne ceny netto: stawki dystrybucji G12 dzien 0,3214 / noc 0,1348, vat 0,23
+const CENY_DYSTR = { vat: 0.23, stawki_dystrybucji: { dzien: 0.3214, noc: 0.1348 }, oplaty_dystrybucji_mc: { sieciowa: 10, abonament: 3.84, mocowa: 24.05 } };
+const idOf = (id, extra = {}) => ({ id_oferty: id, ...CENY_DYSTR, ceny_energii: { dzien: 0.6, noc: 0.4 }, oplata_handlowa_mc: 5, akcyza_kwh: 0, ...extra });
+const hassWybor = (stan = "wszystkie", { opcje = WYBOR_OPCJE, extraScen = [], ...r } = {}) => {
+  const kopia = (sc, id) => [...sc.slice(0, 7), { ...sc[7], ...idOf(id) }];
+  const h = hassZ({
+    scenariusze: [
+      ["pstryk_G12", "Pstryk + G12", 800, 500, 300, -100, true, { ...meta("pstryk", "Pstryk", "G12"), ...CENY_DYSTR, id_oferty: "", srednia_cena_energii: { przed_tarcza: 0.6, po_tarczy: 0.5 }, akcyza_kwh: 0.005 }],
+      ["pstryk_G12w", "Pstryk + G12w", 820, 500, 320, -100, false, { ...meta("pstryk", "Pstryk", "G12w"), ...CENY_DYSTR, vat: 0.23, stawki_dystrybucji: { szczyt: 0.4, pozaszczyt: 0.2 }, id_oferty: "" }],
+      ["pstryk_G13active", "Pstryk + G13active", 810, 500, 310, -100, false, { ...meta("pstryk", "Pstryk", "G13active"), ...CENY_DYSTR, stawki_dystrybucji: { szczyt: 0.5, pobor: 0.1 }, id_oferty: "" }],
+      kopia(WYBOR("G12", 850, 450, 400), "enea_2026_wybor"), kopia(WYBOR("G12w", 900, 450, 450), "enea_2026_wybor"),
+      kopia(PEWNOSC("G12", 700, 400, 300), "enea_eneopewnosc_2026"),
+      kopia(["cennik_G12", "Własny + G12", 880, 580, 300, 0, false, meta("kompleksowa", "Własny", "G12")], "cennik"),
+      ...extraScen,
+    ],
+    roznice: { pstryk_G12w: 20, pstryk_G13active: 10, kompleksowa_enea_2026_wybor_G12: 50, kompleksowa_enea_2026_wybor_G12w: 100, kompleksowa_enea_eneopewnosc_2026_G12: -100, cennik_G12: 80 },
+    ...r,
+  });
+  const eid = "select.sprzedawca";
+  h.entities[eid] = { entity_id: eid, device_id: "dev1", platform: "porownanie_taryf", translation_key: "sprzedawca" };
+  h.states[eid] = { entity_id: eid, state: stan, attributes: { options: opcje } };
+  return h;
+};
+const sekcja2 = (html) => html.split("<h3>2. ")[1];
+
+test("komorkaCeny: brutto = netto × (1 + vat), pod spodem netto; null → „brak danych”", () => {
+  const k = komorkaCeny(0.3214, 0.23);
+  assert.ok(k.includes("0,3953 zł/kWh"));
+  assert.match(k, /<small>netto 0,3214<\/small>/);
+  assert.ok(komorkaCeny(10, 0.23, "zł/mies.", 2).includes("12,30 zł/mies."));
+  for (const k2 of [komorkaCeny(null, 0.23), komorkaCeny(undefined, 0.23), komorkaCeny(0.3, null)]) { assert.match(k2, /brak danych/); assert.doesNotMatch(k2, /netto/); }
+});
+test("polskie nazwy stref i etykiety opcji; nieznane zwracane jak są", () => {
+  assert.equal(nazwaStrefy("dzien"), "dzień"); assert.equal(nazwaStrefy("pozaszczyt"), "pozaszczyt"); assert.equal(nazwaStrefy("calodobowa"), "całodobowo");
+  assert.equal(nazwaStrefy("nowa"), "nowa");
+  assert.deepEqual(WYBOR_OPCJE.map(etykietaOferty), ["Wszystkie oferty", "Enea — prawo wyboru", "Enea — EneoPewność", "Własny cennik"]);
+  assert.equal(etykietaOferty("inny_id"), "inny_id");
+});
+test("wybór „wszystkie”: sekcja 2 pokazuje wszystkie oferty; select ma opcje z polskimi etykietami i zaznaczoną wybraną", () => {
+  const d = zbierzDane(hassWybor("wszystkie"));
+  assert.deepEqual(d.wybor, { encja: "select.sprzedawca", stan: "wszystkie", opcje: WYBOR_OPCJE });
+  assert.equal(widokSekcji2(d).kompleksowa.length, 4);
+  const html = htmlWynikow(d);
+  const po = sekcja2(html);
+  assert.match(po, /<select data-sprzedawca>/);
+  assert.match(po, /<option value="wszystkie" selected>Wszystkie oferty<\/option>/);
+  assert.match(po, /<option value="enea_2026_wybor">Enea — prawo wyboru<\/option>/);
+  assert.match(po, /<option value="enea_eneopewnosc_2026">Enea — EneoPewność<\/option>/);
+  assert.match(po, /<option value="cennik">Własny cennik<\/option>/);
+  assert.equal((html.match(/<select/g) ?? []).length, 1);   // lista tylko w nagłówku sekcji 2
+  assert.ok(html.indexOf("<select") > html.indexOf("<h3>2. ") && html.indexOf("<select") < html.indexOf("</h3>", html.indexOf("<h3>2. ")) + 400);
+});
+test("wybór jednej oferty: wykres, werdykt, brakujące taryfy i uwagi tylko tej oferty; podsumowanie dalej ze wszystkich", () => {
+  const wszystkie = htmlWynikow(zbierzDane(hassWybor("wszystkie")));
+  const html = htmlWynikow(zbierzDane(hassWybor("enea_2026_wybor")));
+  const po = sekcja2(html);
+  assert.match(po, /<option value="enea_2026_wybor" selected>/);
+  assert.deepEqual([...po.matchAll(/<span class="etykieta">([^<]*)</g)].map((m) => m[1]), ["prawo wyboru · G12", "prawo wyboru · G12w"]);
+  assert.match(po, /class="werdykt">Najtańsza: Enea prawo wyboru \+ G12 — o 50,00 zł więcej niż obecna umowa z Pstrykiem</);
+  assert.doesNotMatch(po, /EneoPewność · |Własny \+ G12<\/span>/);
+  assert.match(po, /Oferta „prawo wyboru” nie obejmuje G13active\./);
+  assert.doesNotMatch(po, /Oferta „EneoPewność”/);
+  assert.match(po, new RegExp(UWAGA_WYBOR));
+  // podsumowanie na górze identyczne i nadal wskazuje najtańszą ofertę ogółem (EneoPewność), choć filtr jej nie pokazuje
+  const gora = (h) => h.match(/<p class="podsumowanie">[^]*?<\/p>/)[0];
+  assert.equal(gora(html), gora(wszystkie));
+  assert.match(gora(html), /najtańsza opcja ogółem: Enea EneoPewność \+ G12, o 100,00 zł mniej/);
+  // sekcja 1 bez zmian
+  assert.equal(html.split("<h3>2. ")[0], wszystkie.split("<h3>2. ")[0]);
+});
+test("wybór „cennik”: tylko własny cennik; brak uwag katalogu", () => {
+  const po = sekcja2(htmlWynikow(zbierzDane(hassWybor("cennik"))));
+  assert.deepEqual([...po.matchAll(/<span class="etykieta">([^<]*)</g)].map((m) => m[1]), ["Własny + G12"]);
+  assert.doesNotMatch(po, /nie obejmuje|Uwaga testowa/);
+  assert.match(po, /Najtańsza: Własny \+ G12 — o 80,00 zł więcej/);
+});
+test("wybór spoza listy (po zmianie katalogu) → „wszystkie”, bez błędu; opcja bez pasujących wierszy też", () => {
+  for (const stan of ["usunieta_oferta", "unknown"]) {
+    const d = zbierzDane(hassWybor(stan));
+    assert.equal(widokSekcji2(d).id, "wszystkie");
+    assert.equal(widokSekcji2(d).kompleksowa.length, 4);
+    assert.match(htmlWynikow(d), /<option value="wszystkie" selected>/);
+  }
+  const h = hassWybor("puste", { opcje: [...WYBOR_OPCJE, "puste"] });
+  assert.equal(widokSekcji2(zbierzDane(h)).id, "wszystkie");   // opcja z listy, ale żaden sensor jej nie ma
+  assert.match(htmlWynikow(zbierzDane(h)), /<option value="puste">puste<\/option>/);
+});
+test("bez encji Sprzedawca (starsza integracja): brak listy, sekcja 2 jak dotąd", () => {
+  const h = hassWybor(); delete h.entities["select.sprzedawca"];
+  const d = zbierzDane(h);
+  assert.equal(d.wybor, null);
+  const html = htmlWynikow(d);
+  assert.doesNotMatch(html, /<select/);
+  assert.equal(widokSekcji2(d).kompleksowa.length, 4);
+});
+test("nieznany id oferty na liście → sam id, escapowany", () => {
+  const html = htmlWynikow(zbierzDane(hassWybor("wszystkie", { opcje: [...WYBOR_OPCJE, "<b>x</b>"] })));
+  assert.match(html, /<option value="&#60;b&#62;x&#60;\/b&#62;">&#60;b&#62;x&#60;\/b&#62;<\/option>/);
+  assert.doesNotMatch(html, /<b>x/);
+});
+test("kluczRenderu zmienia się z wyborem Sprzedawcy", () => {
+  assert.notEqual(kluczRenderu(hassWybor("wszystkie")), kluczRenderu(hassWybor("cennik")));
+});
+test("dwa <details>: sekcja 1 i sekcja 2, otwarte tylko te zapamiętane", () => {
+  const d = zbierzDane(hassWybor("wszystkie"));
+  const html = htmlWynikow(d);
+  assert.equal((html.match(/<details/g) ?? []).length, 2);
+  assert.ok(html.split("<h3>2. ")[0].includes('<details class="ceny" data-id="s1">'));
+  assert.ok(sekcja2(html).includes('<details class="ceny" data-id="s2">'));
+  assert.equal((html.match(/<summary>Ceny w tej sekcji<\/summary>/g) ?? []).length, 2);
+  assert.doesNotMatch(html, / open>/);
+  const otw = htmlWynikow(d, { otwarte: new Set(["s2"]) });
+  assert.ok(otw.includes('data-id="s2" open>') && otw.includes('data-id="s1">'));
+});
+test("bez ofert kompleksowych jest tylko <details> sekcji 1", () => {
+  assert.equal((htmlWynikow(zbierzDane(hassWrzesien())).match(/<details/g) ?? []).length, 1);
+});
+test("ceny sekcji 1: stawki każdej taryfy per strefa (brutto + netto), opłaty stałe, średnia Pstryk przed/po Tarczy", () => {
+  const html = htmlCenSekcji1(zbierzDane(hassWybor("wszystkie")));
+  assert.match(html, /<th scope="row" rowspan="2">G12<\/th><td>dzień<\/td><td class="cena"><span class="brutto">0,3953 zł\/kWh<\/span><small>netto 0,3214<\/small>/);
+  assert.match(html, /<td>noc<\/td><td class="cena"><span class="brutto">0,1658 zł\/kWh<\/span><small>netto 0,1348<\/small>/);   // 0,1348 × 1,23
+  assert.match(html, /<td>szczyt<\/td>[^]*?0,4920 zł\/kWh<\/span><small>netto 0,4000/);
+  assert.ok(html.indexOf(">G12<") < html.indexOf(">G12w<"));
+  for (const t of ["Opłata sieciowa stała", "Abonament", "Opłata mocowa"]) assert.ok(html.includes(t));
+  assert.ok(html.includes("4,72 zł/mies.") && html.includes("<small>netto 3,84</small>") && html.includes("29,58 zł/mies."));
+  assert.match(html, /przed Tarczą<\/th><td class="cena"><span class="brutto">0,7380 zł\/kWh<\/span><small>netto 0,6000/);
+  assert.match(html, /po Tarczy<\/th><td class="cena"><span class="brutto">0,6150 zł\/kWh<\/span><small>netto 0,5000/);
+  assert.ok(html.includes("Akcyza (bez VAT)") && html.includes("0,0050 zł/kWh"));
+  assert.ok(!/Dzien|dzien|pozaszczyt_/.test(html));
+});
+test("ceny sekcji 1: okres bez odczytów (średnia null) i brak atrybutów → „brak danych”", () => {
+  const h = hassWybor("wszystkie");
+  const eid = Object.keys(h.entities).find((e) => h.states[e].attributes.scenariusz === "pstryk_G12" && h.entities[e].translation_key === "razem");
+  h.states[eid].attributes.srednia_cena_energii = { przed_tarcza: null, po_tarczy: null };
+  const html = htmlCenSekcji1(zbierzDane(h));
+  assert.equal((html.match(/przed Tarczą<\/th><td class="cena brak">brak danych/g) ?? []).length, 1);
+  assert.match(html, /po Tarczy<\/th><td class="cena brak">brak danych/);
+  const goly = htmlCenSekcji1(zbierzDane(hassWrzesien()));   // sensory bez atrybutów cen
+  assert.ok(goly.includes("brak danych") && !goly.includes("NaN") && !goly.includes("undefined"));
+});
+test("ceny sekcji 2: ceny pokazanej oferty per strefa + opłata handlowa; filtr zawęża tabelę", () => {
+  const d = zbierzDane(hassWybor("enea_eneopewnosc_2026"));
+  const html = htmlCenSekcji2(d, widokSekcji2(d));
+  assert.match(html, /Enea — EneoPewność · G12<\/th><td>dzień<\/td><td class="cena"><span class="brutto">0,7380 zł\/kWh<\/span><small>netto 0,6000/);
+  assert.match(html, /<td>noc<\/td><td class="cena"><span class="brutto">0,4920 zł\/kWh<\/span><small>netto 0,4000/);
+  assert.ok(html.includes("Opłata handlowa") && html.includes("6,15 zł/mies.") && html.includes("<small>netto 5,00</small>"));
+  assert.doesNotMatch(html, /prawo wyboru|Własny cennik/);
+  const wsz = htmlCenSekcji2(zbierzDane(hassWybor("wszystkie")), widokSekcji2(zbierzDane(hassWybor("wszystkie"))));
+  for (const e of ["Enea — prawo wyboru", "Enea — EneoPewność", "Własny cennik"]) assert.ok(wsz.includes(e));
+  assert.ok(wsz.indexOf("Enea — prawo wyboru") < wsz.indexOf("Enea — EneoPewność") && wsz.indexOf("Enea — EneoPewność") < wsz.indexOf("Własny cennik"));   // kolejność z listy opcji
+});
+test("ceny sekcji 2: brak atrybutów oferty → „brak danych”; nazwy escapowane; akcyza własnego cennika", () => {
+  const zla = oferta("x", "<b>oferta</b>", [], "G12", 700, 400, 300);
+  const d = zbierzDane(hassZ({ scenariusze: [pstryk(G12), zla], roznice: { kompleksowa_x_G12: -100 } }));
+  const html = htmlCenSekcji2(d, widokSekcji2(d));
+  assert.ok(html.includes("brak danych") && !html.includes("<b>oferta"));
+  assert.ok(html.includes("&#60;b&#62;oferta&#60;/b&#62; · G12"));
+  const h = hassWybor("cennik");
+  const eid = Object.keys(h.entities).find((e) => h.states[e].attributes.scenariusz === "cennik_G12" && h.entities[e].translation_key === "razem");
+  h.states[eid].attributes.akcyza_kwh = 0.005;
+  const dc = zbierzDane(h);
+  assert.ok(htmlCenSekcji2(dc, widokSekcji2(dc)).includes("Własny cennik · Akcyza (bez VAT)"));
+});
+test("brutto z tabeli × kWh odtwarza kwotę sekcji (syntetycznie)", () => {
+  // 100 kWh po 0,3214 netto → 39,53 zł brutto; tyle samo co netto × 1,23 liczone na sumie
+  const brutto = Number(komorkaCeny(0.3214, 0.23).match(/brutto">([\d,]+)/)[1].replace(",", "."));
+  assert.ok(Math.abs(brutto * 100 - 0.3214 * 100 * 1.23) < 0.005 * 100);
 });

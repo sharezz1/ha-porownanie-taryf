@@ -38,6 +38,12 @@ export function zbierzDane(hass) {
       sprzedawca: a.sprzedawca ?? null,
       taryfa: a.taryfa ?? a.scenariusz.split("_").at(-1) ?? null,
       oferta: a.oferta ?? "", // "" = Pstryk albo własny cennik
+      idOferty: a.id_oferty ?? "", // klucz katalogu albo "cennik"; Pstryk ""
+      vat: typeof a.vat === "number" ? a.vat : null,
+      ceny: { // atrybuty cen (netto); brak = null → „brak danych”
+        stawki: a.stawki_dystrybucji ?? null, oplatyMc: a.oplaty_dystrybucji_mc ?? null, energia: a.ceny_energii ?? null,
+        handlowaMc: a.oplata_handlowa_mc ?? null, akcyza: a.akcyza_kwh ?? null, srednia: a.srednia_cena_energii ?? null,
+      },
       uwagi: Array.isArray(a.uwagi) ? a.uwagi : [],
       razem: liczba(s),
       sprzedazPo: a.sprzedaz_po ?? 0,
@@ -70,6 +76,11 @@ export function zbierzDane(hass) {
 
   const a = (razem.find((s) => s.attributes?.obecny) ?? razem[0])?.attributes ?? {};
   const pokrycie = typeof a.pokrycie === "number" ? a.pokrycie : null;
+  // encja „Sprzedawca”: stan spoza listy opcji traktujemy jak „wszystkie” (widokSekcji2)
+  const sprzedawcaEid = jedna("sprzedawca");
+  const stSprzedawcy = hass.states?.[sprzedawcaEid];
+  const opcje = Array.isArray(stSprzedawcy?.attributes?.options) ? stSprzedawcy.attributes.options.map(String) : [];
+  const wybor = opcje.length ? { encja: sprzedawcaEid, stan: stSprzedawcy.state, opcje } : null;
   const encjeOkresu = { okres: jedna("okres"), data: jedna("data"), koniec: jedna("koniec") };
   const stanOkresu = (k) => hass.states?.[encjeOkresu[k]]?.state ?? null;
   return {
@@ -81,6 +92,7 @@ export function zbierzDane(hass) {
     kompleksowa,
     brakujace,
     uwagi,
+    wybor,
     obecny,
     kwh: { tanie: liczba(hass.states?.[jedna("kwh_tanie")]), drogie: liczba(hass.states?.[jedna("kwh_drogie")]) },
     pokrycie,
@@ -130,6 +142,23 @@ export function podsumowanie(dane) {
     return remis.length ? `${start} · równie tania jak ${remis.map((s) => s.etykieta).join(", ")}` : `${start} · to najtańsza opcja ogółem`;
   }
   return `${start} · najtańsza opcja ogółem: ${najtanszy.etykieta}, o ${kwota(-najtanszy.roznica)} mniej`;
+}
+
+const WSZYSTKIE = "wszystkie";
+const ETYKIETY_OPCJI = {
+  [WSZYSTKIE]: "Wszystkie oferty", enea_2026_wybor: "Enea — prawo wyboru", enea_eneopewnosc_2026: "Enea — EneoPewność", cennik: "Własny cennik",
+};
+export const etykietaOferty = (id) => (Object.hasOwn(ETYKIETY_OPCJI, id) ? ETYKIETY_OPCJI[id] : String(id)); // nieznany id → on sam (esc przy renderze)
+
+// sekcja 2 po filtrze encji „Sprzedawca”; stan spoza listy albo bez pasujących wierszy → wszystkie oferty. Podsumowanie liczy z dane.kompleksowa.
+export function widokSekcji2(dane) {
+  const w = dane.wybor;
+  const id = w && w.opcje.includes(w.stan) ? w.stan : WSZYSTKIE;
+  const k = id === WSZYSTKIE ? dane.kompleksowa : dane.kompleksowa.filter((s) => s.idOferty === id);
+  if (!k.length) return { id: WSZYSTKIE, kompleksowa: dane.kompleksowa, brakujace: dane.brakujace, uwagi: dane.uwagi };
+  const pary = new Set(k.map((s) => JSON.stringify([s.sprzedawca, s.oferta])));
+  const pasuje = (x) => pary.has(JSON.stringify([x.sprzedawca, x.oferta]));
+  return { id, kompleksowa: k, brakujace: dane.brakujace.filter(pasuje), uwagi: dane.uwagi.filter(pasuje) };
 }
 
 // sekcja 1: najtańsza taryfa dystrybucyjna przy umowie z Pstrykiem; lepsza = true, gdy inna taryfa jest tańsza od obecnej
@@ -197,6 +226,13 @@ export const kluczRenderu = (hass) =>
     }),
   ]);
 
+const STREFY = {
+  calodobowa: "całodobowo", dzien: "dzień", noc: "noc", szczyt: "szczyt", pozaszczyt: "pozaszczyt", zalecana: "strefa zalecana",
+  pozostale: "pozostałe godziny", ograniczanie: "ograniczanie poboru", pobor: "zalecany pobór",
+};
+export const nazwaStrefy = (z) => (Object.hasOwn(STREFY, z) ? STREFY[z] : String(z));
+const OPLATY = { sieciowa: "Opłata sieciowa stała", abonament: "Abonament", mocowa: "Opłata mocowa" };
+
 const T = {
   tytul: "Porównanie taryf", okres: "Okres", rodzaje: ["Dzień", "Miesiąc", "Rok", "Zakres"],
   wstecz: "Poprzedni okres", dalej: "Następny okres", od: "Od", do: "Do",
@@ -205,6 +241,10 @@ const T = {
   prad: "prąd po tarczy", pradK: "prąd", dystr: "dystrybucja", obecna: "obecna",
   brakTaryfy: (oferta, taryfy) => `Oferta „${oferta}” nie obejmuje ${taryfy.join(" ani ")}.`,
   drozej: "drożej niż obecna", taniej: "taniej niż obecna",
+  sprzedawca: "Sprzedawca", ceny: "Ceny w tej sekcji", brakDanych: "brak danych",
+  taryfa: "Taryfa", strefa: "Strefa", oferta: "Oferta", ofertaTaryfa: "Oferta i taryfa", cenyEnergii: "Ceny energii", cenaKwh: "Cena za kWh", doplaty: "Opłaty stałe (zł/mies.)",
+  stawkiDystr: "Dystrybucja: stawki za kWh", srednia: "Pstryk: średnia cena energii w okresie", przedTarcza: "przed Tarczą", poTarczy: "po Tarczy",
+  akcyza: "Akcyza (bez VAT)", handlowa: "Opłata handlowa", razemOplaty: "Opłaty",
   tarcza: "Tarcza Pstryk", zuzycie: "Zużycie", tanie: "Tanie godziny", drogie: "Drogie godziny", dane: "Dane",
   podTarcza: "rabat już odjęty od kosztu", podZuzycie: "energia pobrana z sieci", podStrefy: "w obecnej taryfie",
   podDane: "godzin z odczytem licznika",
@@ -221,6 +261,68 @@ const T = {
 export const tekst = (klucz) => T[klucz];
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// brutto (= netto × (1 + vat)) wielkim drukiem, pod nim „netto X”; brak liczby → „brak danych”
+export function komorkaCeny(netto, vat, jednostka = "zł/kWh", miejsca = 4) {
+  if (!Number.isFinite(netto) || !Number.isFinite(vat)) return `<td class="cena brak">${T.brakDanych}</td>`;
+  const f = (x) => new Intl.NumberFormat("pl", { minimumFractionDigits: miejsca, maximumFractionDigits: miejsca, useGrouping: "always" }).format(x);
+  return `<td class="cena"><span class="brutto">${f(netto * (1 + vat))} ${jednostka}</span><small>netto ${f(netto)}</small></td>`;
+}
+const komorkaBezVat = (x) => // akcyza: poza podstawą VAT, więc jedna liczba
+  Number.isFinite(x) ? `<td class="cena"><span class="brutto">${new Intl.NumberFormat("pl", { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(x)} zł/kWh</span></td>` : `<td class="cena brak">${T.brakDanych}</td>`;
+const tabela = (podpis, naglowki, wiersze) =>
+  `<div class="tabela"><table><caption>${podpis}</caption><thead><tr>${naglowki.map((h) => `<th scope="col">${h}</th>`).join("")}</tr></thead><tbody>${wiersze.join("")}</tbody></table></div>`;
+const wierszeStref = (nazwaHtml, stawki, vat, jednostka) => {
+  const zony = Object.entries(stawki ?? {});
+  if (!zony.length) return [`<tr><th scope="row">${nazwaHtml}</th><td>—</td>${komorkaCeny(null)}</tr>`];
+  return zony.map(([z, v], i) => `<tr>${i ? "" : `<th scope="row" rowspan="${zony.length}">${nazwaHtml}</th>`}<td>${esc(nazwaStrefy(z))}</td>${komorkaCeny(v, vat, jednostka)}</tr>`);
+};
+const details = (id, ui, tresc) =>
+  `<details class="ceny" data-id="${id}"${ui?.otwarte?.has(id) ? " open" : ""}><summary>${T.ceny}</summary>${tresc}</details>`;
+
+// sekcja 1: stawki dystrybucji każdej taryfy (strefy + opłaty stałe) i średnia cena energii Pstryk przed/po Tarczy
+export function htmlCenSekcji1(dane, ui) {
+  const po_taryfie = new Map();
+  for (const s of dane.ranking) if (!po_taryfie.has(s.taryfa)) po_taryfie.set(s.taryfa, s);
+  const wiersze = [...po_taryfie.values()].sort((a, b) => kolejnosc(a.taryfa) - kolejnosc(b.taryfa));
+  const stawki = tabela(T.stawkiDystr, [T.taryfa, T.strefa, T.cenaKwh], wiersze.flatMap((s) => wierszeStref(esc(s.taryfa), s.ceny.stawki, s.vat, "zł/kWh")));
+  const klucze = [...new Set(wiersze.flatMap((s) => Object.keys(s.ceny.oplatyMc ?? {})))];
+  const stale = klucze.length
+    ? tabela(T.doplaty, [T.taryfa, ...klucze.map((k) => esc(Object.hasOwn(OPLATY, k) ? OPLATY[k] : k))],
+      wiersze.map((s) => `<tr><th scope="row">${esc(s.taryfa)}</th>${klucze.map((k) => komorkaCeny(s.ceny.oplatyMc?.[k], s.vat, "zł/mies.", 2)).join("")}</tr>`))
+    : "";
+  const p = dane.ranking.find((s) => s.ceny.srednia) ?? dane.ranking[0];
+  const sr = p?.ceny.srednia ?? {};
+  const pstryk = tabela(T.srednia, ["", T.cenaKwh], [
+    `<tr><th scope="row">${T.przedTarcza}</th>${komorkaCeny(sr.przed_tarcza, p?.vat)}</tr>`,
+    `<tr><th scope="row">${T.poTarczy}</th>${komorkaCeny(sr.po_tarczy, p?.vat)}</tr>`,
+    ...(Number.isFinite(p?.ceny.akcyza) ? [`<tr><th scope="row">${T.akcyza}</th>${komorkaBezVat(p.ceny.akcyza)}</tr>`] : []),
+  ]);
+  return details("s1", ui, stawki + stale + pstryk);
+}
+
+// sekcja 2: ceny energii pokazanej oferty (ofert) w strefach i opłata handlowa
+export function htmlCenSekcji2(dane, widok, ui) {
+  const kolejOpcji = (id) => { const i = dane.wybor?.opcje.indexOf(id) ?? -1; return i < 0 ? 1e9 : i; };
+  const grupy = new Map(); // (oferta, taryfa) → pierwszy wiersz; oferta → pierwszy wiersz
+  const oferty = new Map();
+  for (const s of widok.kompleksowa) {
+    const id = s.idOferty || JSON.stringify([s.sprzedawca, s.oferta]);
+    if (!grupy.has(`${id}|${s.taryfa}`)) grupy.set(`${id}|${s.taryfa}`, { id, s });
+    if (!oferty.has(id)) oferty.set(id, s);
+  }
+  const nazwaOferty = (s) => esc(Object.hasOwn(ETYKIETY_OPCJI, s.idOferty) ? ETYKIETY_OPCJI[s.idOferty] : s.oferta || s.etykieta);
+  const sortuj = (a, b) => kolejOpcji(a.s.idOferty) - kolejOpcji(b.s.idOferty) || a.id.localeCompare(b.id) || kolejnosc(a.s.taryfa) - kolejnosc(b.s.taryfa);
+  const energia = tabela(T.cenyEnergii, [T.ofertaTaryfa, T.strefa, T.cenaKwh],
+    [...grupy.values()].sort(sortuj).flatMap(({ s }) => wierszeStref(`${nazwaOferty(s)} · ${esc(s.taryfa)}`, s.ceny.energia, s.vat, "zł/kWh")));
+  const wierszeOfert = [...oferty.values()].sort((a, b) => kolejOpcji(a.idOferty) - kolejOpcji(b.idOferty));
+  const oplaty = tabela(T.razemOplaty, [T.oferta, T.handlowa],
+    wierszeOfert.flatMap((s) => [
+      `<tr><th scope="row">${nazwaOferty(s)}</th>${komorkaCeny(s.ceny.handlowaMc, s.vat, "zł/mies.", 2)}</tr>`,
+      ...(s.ceny.akcyza > 0 ? [`<tr><th scope="row">${nazwaOferty(s)} · ${T.akcyza}</th>${komorkaBezVat(s.ceny.akcyza)}</tr>`] : []),
+    ]));
+  return details("s2", ui, energia + oplaty);
+}
 
 const STYL = `
 :host { display: block; height: 100%; overflow: hidden; background: var(--primary-background-color); color: var(--primary-text-color); }
@@ -291,6 +393,21 @@ input[type="date"] { font: inherit; min-height: 40px; padding: 0 8px; box-sizing
 :host([narrow]) .kafelki { grid-template-columns: 1fr; gap: 8px; }
 :host([narrow]) .kafel { grid-template-columns: 1fr auto; grid-template-areas: "et wart" "pod wart"; align-items: center; column-gap: 12px; }
 
+.naglowek { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.wybor { display: flex; align-items: center; gap: 8px; color: var(--secondary-text-color); font-size: 14px; }
+select { font: inherit; min-height: 40px; padding: 0 8px; box-sizing: border-box; max-width: 100%; border-radius: 8px;
+  border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+select:focus-visible, summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.ceny { margin: 12px 0 0; }
+.ceny summary { cursor: pointer; padding: 8px 0; font-size: 14px; font-weight: 500; color: var(--secondary-text-color); }
+.tabela { overflow-x: auto; margin: 4px 0 12px; }
+.tabela table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela caption { text-align: left; padding: 4px 0; font-weight: 500; }
+.tabela th, .tabela td { padding: 6px 8px; text-align: left; vertical-align: top; border-top: 1px solid var(--divider-color); }
+.tabela thead th { border-top: 0; color: var(--secondary-text-color); font-weight: 400; }
+.tabela td.cena { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabela td.cena small { display: block; font-size: 12px; color: var(--secondary-text-color); }
+.tabela td.brak { color: var(--secondary-text-color); }
 .adnotacja { margin: 8px 0 0; font-size: 13px; color: var(--secondary-text-color); }
 .uwagi { font-size: 14px; line-height: 1.5; color: var(--secondary-text-color); }
 .uwagi ul { margin: 0 0 8px; padding-left: 20px; color: var(--primary-text-color); }
@@ -300,13 +417,13 @@ input[type="date"] { font: inherit; min-height: 40px; padding: 0 8px; box-sizing
 .komunikat p { margin: 0; }
 `;
 
-export function htmlWynikow(dane) {
+export function htmlWynikow(dane, ui = {}) {
   if (dane === undefined) return "";
   if (!dane) return `<div class="karta komunikat"><h2>${T.brakIntegracji}</h2><p>${T.brakIntegracjiOpis}</p></div>`;
   if (dane.brakWyniku) return `<div class="karta komunikat"><p>${T.powody[dane.powod] ?? T.brakWyniku}</p></div>`;
 
   const o = dane.obecny;
-  const max = Math.max(...[...dane.ranking, ...dane.kompleksowa].map((s) => s.razem)); // wspólna skala obu wykresów
+  const max = Math.max(...[...dane.ranking, ...widokSekcji2(dane).kompleksowa].map((s) => s.razem)); // wspólna skala obu wykresów
   const szer = (x) => `${(max > 0 ? Math.max(0, (x / max) * 100) : 0).toFixed(2)}%`; // skala względem najdroższego
   const wiersz = (s, etykieta, klasaPrad) => {
     const opis = esc(`${T.pradK} ${kwota(s.sprzedazPo)}, ${T.dystr} ${kwota(s.dystrybucja)}`);
@@ -327,23 +444,29 @@ export function htmlWynikow(dane) {
       ${werdykt(werdyktPstryk(dane))}
       ${legenda(T.prad, "prad")}
       <ol class="ranking">${dane.ranking.map((s) => wiersz(s, taryfy1 ? s.taryfa : s.etykieta, "prad")).join("")}</ol>
+      ${htmlCenSekcji1(dane, ui)}
       ${kafelki(dane, o)}
     </section>`;
 
-  const k = dane.kompleksowa;
+  const widok = widokSekcji2(dane); // filtr „Sprzedawca” dotyczy tylko sekcji 2; podsumowanie wyżej liczy ze wszystkich
+  const k = widok.kompleksowa;
   const sprzedawcy = new Set(k.map((s) => s.sprzedawca));
   const jeden = sprzedawcy.size === 1 && Object.hasOwn(DOPELNIACZ, k[0].sprzedawca); // jeden katalogowy sprzedawca: nazwa w nagłówku
   const doOfert = k.some((s) => s.oferta);
   const etykietaK = (s) =>
     s.oferta && sprzedawcy.size === 1 ? `${s.oferta} · ${s.taryfa}` : !doOfert && naTaryfy(k, jeden) ? s.taryfa : s.etykieta;
-  const adnotacje = dane.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(b.oferta, b.taryfy))}</p>`).join("");
-  const uwagi = dane.uwagi.map(({ oferta, uwagi }) => `<p class="adnotacja"><strong>${esc(oferta)}:</strong> ${uwagi.map(esc).join(" ")}</p>`).join("");
+  const adnotacje = widok.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(b.oferta, b.taryfy))}</p>`).join("");
+  const uwagi = widok.uwagi.map(({ oferta, uwagi }) => `<p class="adnotacja"><strong>${esc(oferta)}:</strong> ${uwagi.map(esc).join(" ")}</p>`).join("");
+  const lista = dane.wybor
+    ? `<label class="wybor"><span>${T.sprzedawca}</span><select data-sprzedawca>${dane.wybor.opcje.map((o) => `<option value="${esc(o)}"${o === widok.id ? " selected" : ""}>${esc(etykietaOferty(o))}</option>`).join("")}</select></label>`
+    : "";
   const sekcja2 = k.length
     ? `<section class="karta">
-      <h3>${esc(T.sekcja2(jeden ? k[0].sprzedawca : null))}</h3>
-      ${werdykt(werdyktKompleksowa(dane))}
+      <div class="naglowek"><h3>${esc(T.sekcja2(jeden ? k[0].sprzedawca : null))}</h3>${lista}</div>
+      ${werdykt(werdyktKompleksowa({ ...dane, kompleksowa: k }))}
       ${legenda(T.pradK, "prad2")}
       <ol class="ranking">${k.map((s) => wiersz(s, etykietaK(s), "prad2")).join("")}</ol>
+      ${htmlCenSekcji2(dane, widok, ui)}
       ${adnotacje}${uwagi}
     </section>`
     : "";
@@ -382,6 +505,11 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
         this.attachShadow({ mode: "open" });
         this.shadowRoot.addEventListener("click", (e) => this._klik(e));
         this.shadowRoot.addEventListener("change", (e) => this._zmiana(e));
+        this._otwarte = new Set(); // rozwinięte <details> przeżywają odświeżenie wyników
+        this.shadowRoot.addEventListener("toggle", (e) => {
+          const id = e.target.dataset?.id;
+          if (id) e.target.open ? this._otwarte.add(id) : this._otwarte.delete(id);
+        }, true); // toggle nie bąbelkuje
         // ha-menu-button ładuje się leniwie (po F5 bywa niezdefiniowany): do tego czasu na telefonie działa przycisk zastępczy
         customElements.whenDefined("ha-menu-button").then(() => this._menu());
       }
@@ -427,8 +555,14 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
           const nazwa = nazwaOkresu(rodzaj, dane.okresOd ?? data, dane.okresDo ?? koniec);
           if ($(".nazwa").textContent !== nazwa) $(".nazwa").textContent = nazwa;
         }
-        // kontrolki okresu żyją w szkielecie; podmieniane są tylko wyniki
-        $(".wyniki").innerHTML = htmlWynikow(dane);
+        // kontrolki okresu żyją w szkielecie; podmieniane są tylko wyniki, i to gdy HTML faktycznie się zmienił
+        // (natywny <select> z otwartą listą nie ginie przy odświeżeniu niezwiązanym z nim); fokus listy wraca po podmianie
+        const html = htmlWynikow(dane, { otwarte: this._otwarte });
+        if (html === this._html) return;
+        this._html = html;
+        const listaAktywna = !!this.shadowRoot.activeElement?.matches?.("select[data-sprzedawca]");
+        $(".wyniki").innerHTML = html;
+        if (listaAktywna) $("select[data-sprzedawca]")?.focus();
       }
 
       _szkielet() {
@@ -477,6 +611,11 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
       }
 
       _zmiana(e) {
+        if (e.target.matches?.("select[data-sprzedawca]")) {
+          const encja = this._dane?.wybor?.encja;
+          if (encja) this._usluga("select", "select_option", { entity_id: encja, option: e.target.value });
+          return;
+        }
         const pole = e.target.dataset?.pole;
         // Chrome zgłasza change w trakcie wpisywania roku (0002-…, 0020-…): wysyłamy tylko pełny rok 20xx
         if (pole && this._dane && /^20\d\d-\d\d-\d\d$/.test(e.target.value)) this._ustawDate(this._dane.okres.encje[pole], e.target.value);
@@ -488,7 +627,10 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
 
       _usluga(domena, usluga, dane) {
         // błąd wywołania pokazuje sam frontend HA (toast); tu tylko bez nieobsłużonego odrzucenia
-        Promise.resolve(this._hass.callService(domena, usluga, dane)).catch(() => {});
+        Promise.resolve(this._hass.callService(domena, usluga, dane)).catch(() => {
+          this._html = null; // nieudana zmiana: odśwież, żeby kontrolki wróciły do stanu encji
+          this._render();
+        });
       }
     },
   );
