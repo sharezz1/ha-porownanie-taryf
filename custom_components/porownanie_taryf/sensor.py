@@ -9,7 +9,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TaryfyConfigEntry, TaryfyCoordinator
-from .core.scenariusz import cennik_scenariusza, etykieta, grupa_scenariusza, klucze_scenariuszy, sprzedawca_scenariusza, taryfa_scenariusza
+from .core.scenariusz import cennik_scenariusza, etykieta, grupa_scenariusza, id_oferty_scenariusza, klucze_scenariuszy, sprzedawca_scenariusza, taryfa_scenariusza
 from .entity import TaryfyEntity
 
 POWOD_BRAK_KONCA = "koniec_przed_data"
@@ -83,10 +83,38 @@ class ScenariuszSensor(_Sensor):
             razem -= wynik.scenariusze[wynik.obecny].razem
         return round(razem, 2)
 
+    def _ceny(self, wynik, cennik) -> dict[str, Any]:
+        """Tabela cen netto scenariusza (tylko sensor `razem`): panel liczy z niej brutto, nie zna stawek sam."""
+        konf = self.coordinator.konf
+        st, t = konf.stawki, taryfa_scenariusza(self._klucz)
+        wspolne = st.sosj + st.oze + st.kog
+        ceny: dict[str, Any] = {
+            "vat": konf.vat,
+            "stawki_dystrybucji": {z: round(v + wspolne, 4) for z, v in st.zmienne[t].items()},
+            "oplaty_dystrybucji_mc": {"sieciowa": st.stale[t], "abonament": st.abonament, "mocowa": st.moc},
+        }
+        if cennik:
+            return ceny | {
+                "ceny_energii": dict(cennik.ceny[t]),
+                "oplata_handlowa_mc": cennik.oplata_mc,
+                "akcyza_kwh": cennik.akcyza,
+            }
+        kwh = wynik.kwh
+        przed = wynik.pstryk_energia_netto
+        return ceny | {
+            "srednia_cena_energii": {
+                "przed_tarcza": round(przed / kwh, 4) if kwh else None,
+                "po_tarczy": round((przed - wynik.rabat_netto) / kwh, 4) if kwh else None,
+            },
+            "akcyza_kwh": round(wynik.pstryk_akcyza / kwh, 4) if kwh else None,
+        }
+
     def _atrybuty(self, wynik) -> dict[str, Any]:
         s = wynik.scenariusze[self._klucz]
         cennik = cennik_scenariusza(self._klucz, self.coordinator.konf)
-        return super()._atrybuty(wynik) | {
+        ceny = self._ceny(wynik, cennik) if self._attr_translation_key == "razem" else {}
+        return super()._atrybuty(wynik) | ceny | {
+            "id_oferty": id_oferty_scenariusza(self._klucz),
             "scenariusz": self._klucz,
             "etykieta": etykieta(self._klucz, self.coordinator.konf),
             "grupa": grupa_scenariusza(self._klucz),

@@ -10,6 +10,7 @@ from custom_components.porownanie_taryf.core.scenariusz import (
     etykieta,
     godzin_w_okresie,
     grupa_scenariusza,
+    id_oferty_scenariusza,
     klucze_scenariuszy,
     policz,
     rozwiaz_okres,
@@ -58,6 +59,22 @@ def test_grupa_sprzedawca_taryfa():
     assert sprzedawca_scenariusza("cennik_G12", K) == "Enea"
     assert taryfa_scenariusza("pstryk_G13active") == "G13active" and taryfa_scenariusza("cennik_G12") == "G12"
     assert taryfa_scenariusza("kompleksowa_enea_eneopewnosc_2026_G12sezON") == "G12sezON"
+
+
+def test_id_oferty_scenariusza():
+    assert id_oferty_scenariusza("pstryk_G12") == ""
+    assert id_oferty_scenariusza("kompleksowa_enea_2026_wybor_G12") == "enea_2026_wybor"
+    assert id_oferty_scenariusza("kompleksowa_enea_eneopewnosc_2026_G12sezON") == "enea_eneopewnosc_2026"
+    assert id_oferty_scenariusza("cennik_G12") == "cennik"
+
+
+def test_policz_agregaty_pstryk():
+    w = policz(wrzesien(), date(2026,9,1), date(2026,9,30), K)
+    assert w.kwh == pytest.approx(720.0)
+    assert w.pstryk_energia_netto == pytest.approx(720 * 0.58)  # Σ(energia + obsługa), bez akcyzy
+    assert w.pstryk_akcyza == pytest.approx(720 * 0.005)
+    assert w.rabat_netto == pytest.approx(74.45 / 1.23, abs=0.005)
+    assert policz([], date(2026,1,1), date(2026,1,31), K).kwh == 0.0
 
 
 def test_cennik_scenariusza():

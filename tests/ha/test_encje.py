@@ -279,3 +279,125 @@ async def test_encje_v03_oferty_kompleksowej_znikaja_po_aktualizacji(hass, hass_
     assert _eid(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_razem")
     assert _eid(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_roznica")
     assert not [e for e in rejestr.entities.values() if e.unique_id.endswith("_kompleksowa_G12_razem")]
+
+
+OPCJE_CENNIKA = {"cennik": {"nazwa": "X", "oplata_mc": 10, "akcyza": 0.005, "ceny": {"G12": {"dzien": 0.6, "noc": 0.4}}}}
+OPCJE_SPRZEDAWCY = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026"]
+
+
+async def test_atrybuty_cen_pstryk(hass, wpis, pobierz):
+    await _setup(hass, wpis)
+
+    a = _stan(hass, wpis, "sensor", "pstryk_G12_razem").attributes
+    assert a["id_oferty"] == ""
+    assert a["vat"] == 0.23
+    assert a["stawki_dystrybucji"] == {"dzien": 0.3214, "noc": 0.1348}
+    assert a["oplaty_dystrybucji_mc"] == {"sieciowa": 14.56, "abonament": 3.84, "mocowa": 24.05}
+    assert a["srednia_cena_energii"] == {"przed_tarcza": 0.58, "po_tarczy": 0.4959}
+    assert a["akcyza_kwh"] == 0.005
+    assert "ceny_energii" not in a and "oplata_handlowa_mc" not in a
+    # różnica nie niesie tabeli cen, ale ma id_oferty (panel filtruje po nim obie)
+    r = _stan(hass, wpis, "sensor", "pstryk_G12w_roznica").attributes
+    assert r["id_oferty"] == "" and "stawki_dystrybucji" not in r
+
+
+async def test_atrybuty_cen_oferty_kompleksowej(hass, wpis, pobierz):
+    await _setup(hass, wpis)
+
+    a = _stan(hass, wpis, "sensor", "kompleksowa_enea_eneopewnosc_2026_G12sezON_razem").attributes
+    assert a["id_oferty"] == "enea_eneopewnosc_2026"
+    assert a["ceny_energii"] == {"pozostale": 0.5841, "zalecana": 0.3465}
+    assert a["oplata_handlowa_mc"] == 15.94
+    assert a["akcyza_kwh"] == 0.0
+    assert a["stawki_dystrybucji"] == {"pozostale": 0.3214, "zalecana": 0.1348}
+    assert a["oplaty_dystrybucji_mc"] == {"sieciowa": 14.56, "abonament": 3.84, "mocowa": 24.05}
+    assert "srednia_cena_energii" not in a
+    r = _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_roznica").attributes
+    assert r["id_oferty"] == "enea_2026_wybor"
+
+
+async def test_atrybuty_cen_wlasnego_cennika(hass, wpis, pobierz):
+    hass.config_entries.async_update_entry(wpis, options=OPCJE_CENNIKA)
+    await _setup(hass, wpis)
+
+    a = _stan(hass, wpis, "sensor", "cennik_G12_razem").attributes
+    assert a["id_oferty"] == "cennik"
+    assert (a["ceny_energii"], a["oplata_handlowa_mc"], a["akcyza_kwh"]) == ({"dzien": 0.6, "noc": 0.4}, 10, 0.005)
+    assert _stan(hass, wpis, "sensor", "cennik_G12_roznica").attributes["id_oferty"] == "cennik"
+
+
+async def test_nadpisana_stawka_widoczna_w_atrybutach(hass, wpis, pobierz):
+    hass.config_entries.async_update_entry(wpis, options={"stawki": {"G12_dzien": 0.30}})
+    await _setup(hass, wpis)
+
+    assert _stan(hass, wpis, "sensor", "pstryk_G12_razem").attributes["stawki_dystrybucji"]["dzien"] == 0.3435
+
+
+async def test_srednia_pstryk_bez_odczytow_to_null(hass, hass_storage, pobierz):
+    wpis = MockConfigEntry(domain=DOMAIN, data=DATA_WPISU, title="Porównanie taryf")
+    wpis.add_to_hass(hass)  # pusty magazyn, ale udane pobranie: okres bez odczytów
+    await _setup(hass, wpis)
+
+    a = _stan(hass, wpis, "sensor", "pstryk_G12_razem").attributes
+    assert a["srednia_cena_energii"] == {"przed_tarcza": None, "po_tarczy": None}
+    assert a["akcyza_kwh"] is None
+
+
+async def test_select_sprzedawca_opcje_i_domyslna(hass, wpis, pobierz):
+    await _setup(hass, wpis)
+
+    s = _stan(hass, wpis, "select", "sprzedawca")
+    assert s.state == "wszystkie"
+    assert s.attributes["options"] == OPCJE_SPRZEDAWCY
+
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": s.entity_id, "option": "enea_eneopewnosc_2026"}, blocking=True
+    )
+    assert _stan(hass, wpis, "select", "sprzedawca").state == "enea_eneopewnosc_2026"
+    # wybór nie wpływa na liczby
+    assert float(_stan(hass, wpis, "sensor", "pstryk_G12_razem").state) == pytest.approx(710.79, abs=0.005)
+
+
+async def test_select_sprzedawca_z_wlasnym_cennikiem(hass, wpis, pobierz):
+    hass.config_entries.async_update_entry(wpis, options=OPCJE_CENNIKA)
+    await _setup(hass, wpis)
+
+    assert _stan(hass, wpis, "select", "sprzedawca").attributes["options"] == [*OPCJE_SPRZEDAWCY, "cennik"]
+
+
+@pytest.mark.parametrize(
+    ("zapisany", "oczekiwany"),
+    [("enea_eneopewnosc_2026", "enea_eneopewnosc_2026"), ("cennik", "wszystkie"), ("nie_ma_takiego", "wszystkie")],
+)
+async def test_restore_sprzedawcy(hass, wpis, pobierz, zapisany, oczekiwany):
+    select = er.async_get(hass).async_get_or_create(
+        "select", DOMAIN, f"{wpis.entry_id}_sprzedawca", suggested_object_id="sprzedawca", config_entry=wpis
+    )
+    mock_restore_cache(hass, [State(select.entity_id, zapisany)])
+
+    await _setup(hass, wpis)
+
+    assert hass.states.get(select.entity_id).state == oczekiwany
+
+
+async def test_restore_sprzedawcy_cennik_gdy_jest(hass, wpis, pobierz):
+    select = er.async_get(hass).async_get_or_create(
+        "select", DOMAIN, f"{wpis.entry_id}_sprzedawca", suggested_object_id="sprzedawca", config_entry=wpis
+    )
+    mock_restore_cache(hass, [State(select.entity_id, "cennik")])
+    hass.config_entries.async_update_entry(wpis, options=OPCJE_CENNIKA)
+
+    await _setup(hass, wpis)
+
+    assert hass.states.get(select.entity_id).state == "cennik"
+
+
+async def test_sprzedawca_dostepny_mimo_bledu_odswiezania(hass, wpis, pobierz):
+    await _setup(hass, wpis)
+    pobierz.side_effect = PstrykAuthError("Pstryk HTTP 401")
+
+    await wpis.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert _stan(hass, wpis, "sensor", "pstryk_G12_razem").state == "unavailable"
+    assert _stan(hass, wpis, "select", "sprzedawca").state == "wszystkie"

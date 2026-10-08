@@ -84,6 +84,7 @@ Wszystkie encje należą do jednego urządzenia (usługi) „Porównanie taryf�
 | Encja | Działanie |
 |---|---|
 | `select` Okres | Dzień / Miesiąc / Rok / Zakres własny (domyślnie Miesiąc). |
+| `select` Sprzedawca | Oferta kompleksowa pokazywana w sekcji 2 panelu: Wszystkie oferty (domyślnie) / Enea — prawo wyboru / Enea — EneoPewność / Własny cennik (gdy zdefiniowany). Tylko filtruje widok panelu, nie zmienia liczb; wybór spoza listy wraca do „Wszystkie oferty”. |
 | `date` Data | Dzień (lub miesiąc/rok zawierający tę datę, lub początek zakresu). Domyślnie 1. dzień poprzedniego miesiąca. |
 | `date` Koniec zakresu | Używany tylko w trybie „Zakres własny”. Domyślnie równy Dacie (zakres jednodniowy). |
 
@@ -112,6 +113,7 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `sprzedawca` | Nazwa sprzedawcy: `Pstryk`, `Enea` albo nazwa własnego cennika. |
 | `oferta` | Nazwa oferty: `prawo wyboru` albo `EneoPewność` (Enea); pusta dla Pstryk i własnego cennika. |
 | `uwagi` | Lista uwag do oferty (warunki, ważność cennika); pusta dla Pstryk i własnego cennika. |
+| `id_oferty` | Klucz oferty z katalogu (np. `enea_eneopewnosc_2026`), `cennik` dla własnego cennika, pusty dla Pstryk (sensory `razem` i `roznica`). |
 | `taryfa` | Taryfa dystrybucyjna scenariusza, np. `G12`. |
 | `obecny` | `true` dla scenariusza obecnej taryfy. |
 | `sprzedaz_przed` | Sprzedaż brutto przed Tarczą. |
@@ -122,6 +124,13 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `szacunek` | `true`, gdy w magazynie brakuje części godzin miesiąca użytego do Tarczy, więc rabat jest oszacowany. |
 | `ostrzezenia` | Lista kodów ostrzeżeń (patrz niżej). |
 | `kwh_na_strefe` | Zużycie (kWh) w poszczególnych strefach taryfy scenariusza. |
+| `vat` | Stawka VAT (ułamek, np. `0.23`). Tabela cen poniżej: tylko sensory `razem`, kwoty netto zł/kWh lub zł/mc, 4 miejsca. |
+| `stawki_dystrybucji` | Stawka dystrybucji na strefę: składnik zmienny + opłata jakościowa + OZE + kogeneracyjna. |
+| `oplaty_dystrybucji_mc` | Opłaty miesięczne dystrybucji: `sieciowa` (składnik stały), `abonament`, `mocowa`. |
+| `ceny_energii` | Oferty kompleksowe i własny cennik: cena energii na strefę. |
+| `oplata_handlowa_mc` | Oferty kompleksowe i własny cennik: opłata handlowa (zł/mc). |
+| `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
+| `srednia_cena_energii` | Tylko Pstryk: `przed_tarcza` i `po_tarczy`, średnia cena energii z obsługą (zł/kWh) w okresie; `null` bez odczytów. |
 | `powod` | Tylko gdy wynik jest niedostępny: `koniec_przed_data`. |
 
 Sensory „kWh” mają tylko `okres_od`, `okres_do`, `pokrycie` i `dane_z`.
@@ -160,7 +169,7 @@ Obok scenariuszy Pstryk integracja ma wbudowane dwie oferty kompleksowe **Enea**
 Pozostałe informacje:
 
 - Scenariusze Enei mają `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, a oferty rozróżnia atrybut `oferta` i klucz scenariusza. Własny cennik ma tę samą `grupę`, `sprzedawca` to jego nazwa, a `oferta` jest pusta; wszystkie mogą występować jednocześnie.
-- Wybór innego sprzedawcy z katalogu nie ma jeszcze interfejsu; lista sprzedawców zostanie rozszerzona w przyszłych wersjach. Ważność cenników: „prawo wyboru” to cennik na 2026 rok; „EneoPewność” to umowy zawierane od 1.10 do 31.12.2026, ceny stałe przez 36 miesięcy.
+- Ofertę pokazywaną w sekcji 2 panelu wybierasz encją `select` Sprzedawca (nie zmienia obliczeń). Ważność cenników: „prawo wyboru” to cennik na 2026 rok; „EneoPewność” to umowy zawierane od 1.10 do 31.12.2026, ceny stałe przez 36 miesięcy.
 
 **Aktualizacja z v0.3: zmiana nazw encji oferty kompleksowej.** Klucz scenariusza zawiera teraz identyfikator oferty: `kompleksowa_G12` zmienił się na `kompleksowa_enea_2026_wybor_G12` (i analogicznie dla G11, G12w, oraz encji `razem` i `roznica`). Po aktualizacji stare encje oferty Enea znikają z rejestru, a w ich miejsce powstają nowe, z nowymi identyfikatorami. **Zaktualizuj automatyzacje, szablony i karty, które odwoływały się do starych encji**. Encje Pstryk i własnego cennika zostają bez zmian.
 
@@ -285,6 +294,7 @@ All entities belong to a single device (service) named "Porównanie taryf", so t
 | Entity | Behaviour |
 |---|---|
 | `select` Period | Day / Month / Year / Custom range (default Month). |
+| `select` Seller | Comprehensive offer shown in panel section 2: All offers (default) / Enea — right to choose / Enea — EneoPewność / Own price list (when defined). It only filters the panel view and does not change any figure; a value outside the list falls back to "All offers". |
 | `date` Date | The day (or the month/year containing the date, or the start of the range). Defaults to the 1st day of the previous month. |
 | `date` Range end | Used only in "Custom range" mode. Defaults to the Date (a one-day range). |
 
@@ -313,6 +323,7 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `sprzedawca` | Seller name: `Pstryk`, `Enea` or the name of your own price list. |
 | `oferta` | Offer name: `prawo wyboru` or `EneoPewność` (Enea); empty for Pstryk and an own price list. |
 | `uwagi` | List of notes on the offer (conditions, price list validity); empty for Pstryk and an own price list. |
+| `id_oferty` | Catalogue offer key (e.g. `enea_eneopewnosc_2026`), `cennik` for the own price list, empty for Pstryk (`total` and `difference` sensors). |
 | `taryfa` | The scenario's distribution tariff, e.g. `G12`. |
 | `obecny` | `true` for the current tariff's scenario. |
 | `sprzedaz_przed` | Gross sales before the Shield. |
@@ -323,6 +334,13 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `szacunek` | `true` when part of the hours of the month used for the Shield is missing from storage, so the rebate is an estimate. |
 | `ostrzezenia` | List of warning codes (see below). |
 | `kwh_na_strefe` | Consumption (kWh) per zone of the scenario's tariff. |
+| `vat` | VAT rate (fraction, e.g. `0.23`). The price table below is on the `total` sensors only; net amounts, PLN/kWh or PLN/month, 4 decimals. |
+| `stawki_dystrybucji` | Distribution rate per zone: variable component + quality + renewables + cogeneration fees. |
+| `oplaty_dystrybucji_mc` | Monthly distribution fees: `sieciowa` (fixed component), `abonament`, `mocowa` (capacity fee). |
+| `ceny_energii` | Comprehensive offers and own price list: energy price per zone. |
+| `oplata_handlowa_mc` | Comprehensive offers and own price list: trading fee (PLN/month). |
+| `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), from the own price list; for Pstryk the period average (`null` without readings). |
+| `srednia_cena_energii` | Pstryk only: `przed_tarcza` (before the Shield) and `po_tarczy` (after), average energy price including the service fee (PLN/kWh) over the period; `null` without readings. |
 | `powod` | Only when the result is unavailable: `koniec_przed_data`. |
 
 The "kWh" sensors only have `okres_od`, `okres_do`, `pokrycie` and `dane_z`.
@@ -361,7 +379,7 @@ Besides the Pstryk scenarios the integration has two built-in comprehensive offe
 Other notes:
 
 - Enea scenarios have `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, and the offers are told apart by the `oferta` attribute and the scenario key. An own price list has the same `grupa`, its name as `sprzedawca` and an empty `oferta`; all of them can exist at once.
-- Choosing another seller from the catalogue has no UI yet; the list of sellers will grow in future versions. Validity of the price lists: "prawo wyboru" is the 2026 price list; "EneoPewność" is for contracts signed from 1 Oct to 31 Dec 2026, with prices fixed for 36 months.
+- The offer shown in panel section 2 is chosen with the Seller `select` entity (it does not change any calculation). Validity of the price lists: "prawo wyboru" is the 2026 price list; "EneoPewność" is for contracts signed from 1 Oct to 31 Dec 2026, with prices fixed for 36 months.
 
 **Upgrading from v0.3: the comprehensive-offer entities are renamed.** The scenario key now contains the offer id: `kompleksowa_G12` became `kompleksowa_enea_2026_wybor_G12` (likewise for G11, G12w, and for both the `razem`/total and `roznica`/difference entities). After the update the old Enea-offer entities disappear from the registry and new ones, with new IDs, are created in their place. **Update any automations, templates and cards that referenced the old entities**. Pstryk and own-price-list entities are unchanged.
 

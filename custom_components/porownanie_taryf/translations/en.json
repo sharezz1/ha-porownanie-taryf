@@ -165,6 +165,15 @@
           "rok": "Year",
           "zakres": "Custom range"
         }
+      },
+      "sprzedawca": {
+        "name": "Seller",
+        "state": {
+          "wszystkie": "All offers",
+          "enea_2026_wybor": "Enea — right to choose",
+          "enea_eneopewnosc_2026": "Enea — EneoPewność",
+          "cennik": "Own price list"
+        }
       }
     },
     "date": {

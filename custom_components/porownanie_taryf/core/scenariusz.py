@@ -34,6 +34,10 @@ class Wynik:
     pokrycie: float
     kwh_tanie: float  # w tanich strefach obecnej taryfy
     kwh_drogie: float
+    kwh: float  # zużycie w całym okresie
+    pstryk_energia_netto: float  # Σ(energia + obsługa) z API, bez akcyzy
+    pstryk_akcyza: float  # Σ akcyzy z API
+    rabat_netto: float  # Tarcza netto (wspólna dla scenariuszy pstryk_*)
     obecny: str  # klucz scenariusza
     scenariusze: dict[str, WynikScenariusza]
 
@@ -81,6 +85,13 @@ def grupa_scenariusza(klucz: str) -> str:
     return "pstryk" if klucz.startswith("pstryk_") else "kompleksowa"
 
 
+def id_oferty_scenariusza(klucz: str) -> str:
+    """Klucz katalogu (`kompleksowa_<id>_<T>`), "cennik" dla własnego cennika, "" dla Pstryka."""
+    if klucz.startswith("kompleksowa_"):
+        return klucz.removeprefix("kompleksowa_").rsplit("_", 1)[0]
+    return "" if klucz.startswith("pstryk_") else "cennik"
+
+
 def cennik_scenariusza(klucz: str, k: Konfiguracja) -> Cennik | None:
     """Wpis katalogu lub własny cennik; None dla Pstryka."""
     if klucz.startswith("pstryk_"):
@@ -113,6 +124,7 @@ def policz(wszystkie: Sequence[HourlyReading], od: date, do: date, k: Konfigurac
         wspolne.add(f"stawki_spoza_roku:{k.stawki.rok}")
 
     pstryk = sprzedaz_pstryk(odczyty, k.vat)
+    akcyza_pstryk = sum(r.excise or 0.0 for r in odczyty)
     rabat = tarcza(odczyty, wszystkie, k.tarcza, k.vat)  # wspólna dla wszystkich scenariuszy pstryk_*
     dystr = {t: dystrybucja(odczyty, t, k.stawki, k.tanie_g12, k.vat) for t in TARYFY}
 
@@ -147,6 +159,10 @@ def policz(wszystkie: Sequence[HourlyReading], od: date, do: date, k: Konfigurac
         od=od, do=do, pokrycie=pokrycie,
         kwh_tanie=kwh[tania],
         kwh_drogie=sum(v for z, v in kwh.items() if z != tania),
+        kwh=sum(r.kwh for r in odczyty),
+        pstryk_energia_netto=pstryk.netto - akcyza_pstryk,
+        pstryk_akcyza=akcyza_pstryk,
+        rabat_netto=rabat.rabat_netto,
         obecny=f"pstryk_{obecna}",
         scenariusze=scenariusze,
     )

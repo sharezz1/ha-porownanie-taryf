@@ -1,4 +1,4 @@
-"""Select „Okres” (dzień/miesiąc/rok/zakres własny), przywracany po restarcie (spec §7)."""
+"""Selecty „Okres” (dzień/miesiąc/rok/zakres własny) i „Sprzedawca” (filtr panelu), przywracane po restarcie (spec §7, §7a)."""
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
@@ -13,7 +13,7 @@ from .entity import SterowanieEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: TaryfyConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
-    async_add_entities([OkresSelect(entry.runtime_data)])
+    async_add_entities([OkresSelect(entry.runtime_data), SprzedawcaSelect(entry.runtime_data)])
 
 
 class OkresSelect(SterowanieEntity, SelectEntity, RestoreEntity):
@@ -33,3 +33,24 @@ class OkresSelect(SterowanieEntity, SelectEntity, RestoreEntity):
 
     async def async_select_option(self, option: str) -> None:
         self.coordinator.ustaw_okres(rodzaj=option)
+
+
+class SprzedawcaSelect(SterowanieEntity, SelectEntity, RestoreEntity):
+    """Oferta pokazywana w sekcji 2 panelu. Tylko do filtrowania widoku: liczb nie zmienia."""
+
+    _attr_current_option = "wszystkie"
+
+    def __init__(self, coordinator: TaryfyCoordinator) -> None:
+        super().__init__(coordinator, "sprzedawca")
+        k = coordinator.konf
+        self._attr_options = ["wszystkie", *k.kompleksowe, *(["cennik"] if k.cennik else [])]
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        # wybór spoza listy (zmieniony katalog, usunięty cennik) zostaje przy "wszystkie"
+        if (ostatni := await self.async_get_last_state()) and ostatni.state in self.options:
+            self._attr_current_option = ostatni.state
+
+    async def async_select_option(self, option: str) -> None:
+        self._attr_current_option = option
+        self.async_write_ha_state()
