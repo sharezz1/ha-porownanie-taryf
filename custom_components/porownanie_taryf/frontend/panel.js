@@ -148,7 +148,19 @@ const WSZYSTKIE = "wszystkie";
 const ETYKIETY_OPCJI = {
   [WSZYSTKIE]: "Wszystkie oferty", enea_2026_wybor: "Enea — prawo wyboru", enea_eneopewnosc_2026: "Enea — EneoPewność", cennik: "Własny cennik",
 };
-export const etykietaOferty = (id) => (Object.hasOwn(ETYKIETY_OPCJI, id) ? ETYKIETY_OPCJI[id] : String(id)); // nieznany id → on sam (esc przy renderze)
+// etykieta opcji listy: wbudowana; „cennik” z nazwą własnego sprzedawcy; nieznana z atrybutów pasujących sensorów („sprzedawca — oferta”); inaczej sam id (esc przy renderze)
+export function etykietaOferty(id, kompleksowa = []) {
+  const s = kompleksowa.find((x) => x.idOferty === id);
+  if (id === "cennik" && s?.sprzedawca) return `${ETYKIETY_OPCJI.cennik}: ${s.sprzedawca}`;
+  if (Object.hasOwn(ETYKIETY_OPCJI, id)) return ETYKIETY_OPCJI[id];
+  return (s && [s.sprzedawca, s.oferta].filter(Boolean).join(" — ")) || String(id);
+}
+
+// lista „Sprzedawca” ma pokazywać widok efektywny (opcja bez wierszy → „wszystkie”), także gdy HTML się nie zmienił
+export function synchronizujListe(korzen, dane) {
+  const lista = korzen.querySelector("select[data-sprzedawca]");
+  if (lista && dane?.wybor) lista.value = widokSekcji2(dane).id;
+}
 
 // sekcja 2 po filtrze encji „Sprzedawca”; stan spoza listy albo bez pasujących wierszy → wszystkie oferty. Podsumowanie liczy z dane.kompleksowa.
 export function widokSekcji2(dane) {
@@ -243,7 +255,7 @@ const T = {
   drozej: "drożej niż obecna", taniej: "taniej niż obecna",
   sprzedawca: "Sprzedawca", ceny: "Ceny w tej sekcji", brakDanych: "brak danych",
   taryfa: "Taryfa", strefa: "Strefa", oferta: "Oferta", ofertaTaryfa: "Oferta i taryfa", cenyEnergii: "Ceny energii", cenaKwh: "Cena za kWh", doplaty: "Opłaty stałe (zł/mies.)",
-  stawkiDystr: "Dystrybucja: stawki za kWh", srednia: "Pstryk: średnia cena energii w okresie", przedTarcza: "przed Tarczą", poTarczy: "po Tarczy",
+  stawkiDystr: "Dystrybucja: stawki za kWh", srednia: "Pstryk: średnia cena energii w okresie (z opłatą handlową Pstryka)", pozycja: "Pozycja", przedTarcza: "przed Tarczą", poTarczy: "po Tarczy",
   akcyza: "Akcyza (bez VAT)", handlowa: "Opłata handlowa", razemOplaty: "Opłaty",
   tarcza: "Tarcza Pstryk", zuzycie: "Zużycie", tanie: "Tanie godziny", drogie: "Drogie godziny", dane: "Dane",
   podTarcza: "rabat już odjęty od kosztu", podZuzycie: "energia pobrana z sieci", podStrefy: "w obecnej taryfie",
@@ -293,7 +305,7 @@ export function htmlCenSekcji1(dane, ui) {
     : "";
   const p = dane.ranking.find((s) => s.ceny.srednia) ?? dane.ranking[0];
   const sr = p?.ceny.srednia ?? {};
-  const pstryk = tabela(T.srednia, ["", T.cenaKwh], [
+  const pstryk = tabela(T.srednia, [`<span class="ukryte">${T.pozycja}</span>`, T.cenaKwh], [
     `<tr><th scope="row">${T.przedTarcza}</th>${komorkaCeny(sr.przed_tarcza, p?.vat)}</tr>`,
     `<tr><th scope="row">${T.poTarczy}</th>${komorkaCeny(sr.po_tarczy, p?.vat)}</tr>`,
     ...(Number.isFinite(p?.ceny.akcyza) ? [`<tr><th scope="row">${T.akcyza}</th>${komorkaBezVat(p.ceny.akcyza)}</tr>`] : []),
@@ -325,6 +337,7 @@ export function htmlCenSekcji2(dane, widok, ui) {
 }
 
 const STYL = `
+.ukryte { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 :host { display: block; height: 100%; overflow: hidden; background: var(--primary-background-color); color: var(--primary-text-color); }
 [hidden] { display: none !important; }
 button { font: inherit; cursor: pointer; }
@@ -458,7 +471,7 @@ export function htmlWynikow(dane, ui = {}) {
   const adnotacje = widok.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(b.oferta, b.taryfy))}</p>`).join("");
   const uwagi = widok.uwagi.map(({ oferta, uwagi }) => `<p class="adnotacja"><strong>${esc(oferta)}:</strong> ${uwagi.map(esc).join(" ")}</p>`).join("");
   const lista = dane.wybor
-    ? `<label class="wybor"><span>${T.sprzedawca}</span><select data-sprzedawca>${dane.wybor.opcje.map((o) => `<option value="${esc(o)}"${o === widok.id ? " selected" : ""}>${esc(etykietaOferty(o))}</option>`).join("")}</select></label>`
+    ? `<label class="wybor"><span>${T.sprzedawca}</span><select data-sprzedawca>${dane.wybor.opcje.map((o) => `<option value="${esc(o)}"${o === widok.id ? " selected" : ""}>${esc(etykietaOferty(o, dane.kompleksowa))}</option>`).join("")}</select></label>`
     : "";
   const sekcja2 = k.length
     ? `<section class="karta">
@@ -558,7 +571,7 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
         // kontrolki okresu żyją w szkielecie; podmieniane są tylko wyniki, i to gdy HTML faktycznie się zmienił
         // (natywny <select> z otwartą listą nie ginie przy odświeżeniu niezwiązanym z nim); fokus listy wraca po podmianie
         const html = htmlWynikow(dane, { otwarte: this._otwarte });
-        if (html === this._html) return;
+        if (html === this._html) { synchronizujListe(this.shadowRoot, dane); return; }
         this._html = html;
         const listaAktywna = !!this.shadowRoot.activeElement?.matches?.("select[data-sprzedawca]");
         $(".wyniki").innerHTML = html;

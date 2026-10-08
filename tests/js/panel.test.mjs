@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  etykietaOferty, htmlCenSekcji1, htmlCenSekcji2, htmlWynikow, kluczRenderu, komorkaCeny, kwota, nazwaStrefy, widokSekcji2, naTaryfy, nazwaOkresu, podsumowanie, przesun, tekst, tekstOstrzezenia, udzialy,
+  etykietaOferty, synchronizujListe, htmlCenSekcji1, htmlCenSekcji2, htmlWynikow, kluczRenderu, komorkaCeny, kwota, nazwaStrefy, widokSekcji2, naTaryfy, nazwaOkresu, podsumowanie, przesun, tekst, tekstOstrzezenia, udzialy,
   werdyktKompleksowa, werdyktPstryk, zbierzDane,
 } from "../../custom_components/porownanie_taryf/frontend/panel.js";
 
@@ -423,7 +423,7 @@ test("komorkaCeny: brutto = netto × (1 + vat), pod spodem netto; null → „br
 test("polskie nazwy stref i etykiety opcji; nieznane zwracane jak są", () => {
   assert.equal(nazwaStrefy("dzien"), "dzień"); assert.equal(nazwaStrefy("pozaszczyt"), "pozaszczyt"); assert.equal(nazwaStrefy("calodobowa"), "całodobowo");
   assert.equal(nazwaStrefy("nowa"), "nowa");
-  assert.deepEqual(WYBOR_OPCJE.map(etykietaOferty), ["Wszystkie oferty", "Enea — prawo wyboru", "Enea — EneoPewność", "Własny cennik"]);
+  assert.deepEqual(WYBOR_OPCJE.map((o) => etykietaOferty(o)), ["Wszystkie oferty", "Enea — prawo wyboru", "Enea — EneoPewność", "Własny cennik"]);
   assert.equal(etykietaOferty("inny_id"), "inny_id");
 });
 test("wybór „wszystkie”: sekcja 2 pokazuje wszystkie oferty; select ma opcje z polskimi etykietami i zaznaczoną wybraną", () => {
@@ -436,7 +436,7 @@ test("wybór „wszystkie”: sekcja 2 pokazuje wszystkie oferty; select ma opcj
   assert.match(po, /<option value="wszystkie" selected>Wszystkie oferty<\/option>/);
   assert.match(po, /<option value="enea_2026_wybor">Enea — prawo wyboru<\/option>/);
   assert.match(po, /<option value="enea_eneopewnosc_2026">Enea — EneoPewność<\/option>/);
-  assert.match(po, /<option value="cennik">Własny cennik<\/option>/);
+  assert.match(po, /<option value="cennik">Własny cennik: Własny<\/option>/);
   assert.equal((html.match(/<select/g) ?? []).length, 1);   // lista tylko w nagłówku sekcji 2
   assert.ok(html.indexOf("<select") > html.indexOf("<h3>2. ") && html.indexOf("<select") < html.indexOf("</h3>", html.indexOf("<h3>2. ")) + 400);
 });
@@ -482,6 +482,39 @@ test("bez encji Sprzedawca (starsza integracja): brak listy, sekcja 2 jak dotąd
   const html = htmlWynikow(d);
   assert.doesNotMatch(html, /<select/);
   assert.equal(widokSekcji2(d).kompleksowa.length, 4);
+});
+test("etykiety nieznanych opcji z atrybutów sensorów: „sprzedawca — oferta”; cennik z nazwą sprzedawcy", () => {
+  const nowa = ["kompleksowa_inna_2027_G12", "Inna Nowa + G12", 860, 450, 410, 0, false, { ...meta("kompleksowa", "Inna", "G12", "Nowa"), ...CENY_DYSTR, id_oferty: "inna_2027" }];
+  const h = hassWybor("wszystkie", { opcje: [...WYBOR_OPCJE, "inna_2027", "bez_wierszy"], extraScen: [nowa] });
+  const d = zbierzDane(h);
+  const html = htmlWynikow(d);
+  assert.match(html, /<option value="inna_2027">Inna — Nowa<\/option>/);
+  assert.match(html, /<option value="bez_wierszy">bez_wierszy<\/option>/);
+  assert.match(html, /<option value="cennik">Własny cennik: Własny<\/option>/);   // meta cennika: sprzedawca „Własny”
+  assert.match(html, /<option value="enea_2026_wybor">Enea — prawo wyboru<\/option>/);   // wbudowane etykiety bez zmian
+  assert.equal(etykietaOferty("cennik", d.kompleksowa), "Własny cennik: Własny");
+  assert.equal(etykietaOferty("cennik", []), "Własny cennik");
+  const bez = hassWybor("wszystkie"); for (const e of Object.keys(bez.states)) if (bez.states[e].attributes.scenariusz === "cennik_G12") bez.states[e].attributes.sprzedawca = "";
+  assert.match(htmlWynikow(zbierzDane(bez)), /<option value="cennik">Własny cennik<\/option>/);
+  const zly = ["kompleksowa_x_G12", "X", 860, 450, 410, 0, false, { ...meta("kompleksowa", "<i>Ex</i>", "G12", "Of"), id_oferty: "x" }];
+  assert.ok(htmlWynikow(zbierzDane(hassWybor("wszystkie", { opcje: [...WYBOR_OPCJE, "x"], extraScen: [zly] }))).includes(">&#60;i&#62;Ex&#60;/i&#62; — Of</option>"));
+});
+test("synchronizujListe: lista pokazuje widok efektywny (opcja bez wierszy → wszystkie), nawet gdy HTML się nie zmienił", () => {
+  const lista = { value: "bez_wierszy" };   // przeglądarka ustawiła wybór użytkownika
+  const korzen = { querySelector: (s) => (s === "select[data-sprzedawca]" ? lista : null) };
+  synchronizujListe(korzen, zbierzDane(hassWybor("bez_wierszy", { opcje: [...WYBOR_OPCJE, "bez_wierszy"] })));
+  assert.equal(lista.value, "wszystkie");
+  synchronizujListe(korzen, zbierzDane(hassWybor("cennik")));
+  assert.equal(lista.value, "cennik");
+  synchronizujListe({ querySelector: () => null }, zbierzDane(hassWybor("cennik")));   // brak listy: bez błędu
+  synchronizujListe(korzen, zbierzDane(hassWrzesien()));   // brak encji Sprzedawca: lista nietknięta
+  assert.equal(lista.value, "cennik");
+});
+test("a11y: pusty nagłówek kolumny tabeli średniej Pstryk ma ukrytą etykietę, podpis wspomina opłatę handlową Pstryka", () => {
+  const html = htmlCenSekcji1(zbierzDane(hassWybor("wszystkie")));
+  assert.doesNotMatch(html, /<th scope="col"><\/th>/);
+  assert.match(html, /<th scope="col"><span class="ukryte">Pozycja<\/span><\/th>/);
+  assert.match(html, /<caption>Pstryk: średnia cena energii w okresie \(z opłatą handlową Pstryka\)<\/caption>/);
 });
 test("nieznany id oferty na liście → sam id, escapowany", () => {
   const html = htmlWynikow(zbierzDane(hassWybor("wszystkie", { opcje: [...WYBOR_OPCJE, "<b>x</b>"] })));

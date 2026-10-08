@@ -132,8 +132,9 @@ async def test_atrybuty_oferty_i_uwag(hass, wpis, pobierz):
 async def test_uwagi_poza_rejestratorem(hass, wpis, pobierz):
     from custom_components.porownanie_taryf.sensor import ScenariuszSensor
 
-    assert "uwagi" in ScenariuszSensor._unrecorded_attributes
-    assert "uwagi" in ScenariuszSensor._Entity__combined_unrecorded_attributes  # HA faktycznie to uwzględnia
+    statyczne = {"uwagi", "stawki_dystrybucji", "oplaty_dystrybucji_mc", "ceny_energii", "oplata_handlowa_mc", "vat", "akcyza_kwh", "srednia_cena_energii"}
+    assert statyczne <= ScenariuszSensor._unrecorded_attributes
+    assert statyczne <= ScenariuszSensor._Entity__combined_unrecorded_attributes  # HA faktycznie to uwzględnia
 
 
 async def test_wlasny_cennik_bez_oferty_i_uwag(hass, wpis, pobierz):

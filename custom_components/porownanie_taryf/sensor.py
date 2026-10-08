@@ -63,7 +63,10 @@ class KwhSensor(_Sensor):
 
 
 class ScenariuszSensor(_Sensor):
-    _unrecorded_attributes = frozenset({"uwagi"})  # długi statyczny tekst nie powinien trafiać do rejestratora
+    # długi statyczny tekst i stałe ceny nie powinny trafiać do rejestratora
+    _unrecorded_attributes = frozenset({
+        "uwagi", "stawki_dystrybucji", "oplaty_dystrybucji_mc", "ceny_energii", "oplata_handlowa_mc", "vat", "akcyza_kwh", "srednia_cena_energii",
+    })
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = "PLN"
     _attr_suggested_display_precision = 2

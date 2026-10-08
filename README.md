@@ -124,11 +124,11 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `szacunek` | `true`, gdy w magazynie brakuje części godzin miesiąca użytego do Tarczy, więc rabat jest oszacowany. |
 | `ostrzezenia` | Lista kodów ostrzeżeń (patrz niżej). |
 | `kwh_na_strefe` | Zużycie (kWh) w poszczególnych strefach taryfy scenariusza. |
-| `vat` | Stawka VAT (ułamek, np. `0.23`). Tabela cen poniżej: tylko sensory `razem`, kwoty netto zł/kWh lub zł/mc, 4 miejsca. |
+| `vat` | Stawka VAT (ułamek, np. `0.23`). Atrybuty cen poniżej są tylko na sensorach `razem`, to kwoty netto (zł/kWh lub zł/mies.); zaokrąglone do 4 miejsc są tylko stawki. |
 | `stawki_dystrybucji` | Stawka dystrybucji na strefę: składnik zmienny + opłata jakościowa + OZE + kogeneracyjna. |
 | `oplaty_dystrybucji_mc` | Opłaty miesięczne dystrybucji: `sieciowa` (składnik stały), `abonament`, `mocowa`. |
-| `ceny_energii` | Oferty kompleksowe i własny cennik: cena energii na strefę. |
-| `oplata_handlowa_mc` | Oferty kompleksowe i własny cennik: opłata handlowa (zł/mc). |
+| `ceny_energii` | Oferty kompleksowe i własny cennik: cena energii na strefę (zł/kWh). |
+| `oplata_handlowa_mc` | Oferty kompleksowe i własny cennik: opłata handlowa (zł/mies.). |
 | `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
 | `srednia_cena_energii` | Tylko Pstryk: `przed_tarcza` i `po_tarczy`, średnia cena energii z obsługą (zł/kWh) w okresie; `null` bez odczytów. |
 | `powod` | Tylko gdy wynik jest niedostępny: `koniec_przed_data`. |
@@ -180,6 +180,8 @@ Integracja sama dodaje do paska bocznego HA panel **Porównanie taryf** (ikona w
 - **Linijka podsumowania** na górze: kwota obecnej umowy za wybrany okres i najtańsza opcja ogółem z obu sekcji (albo informacja, że obecna jest najtańsza lub równie tania jak inna).
 - **Sekcja 1. „Prąd z Pstryka + dystrybucja Enea Operator”:** własny werdykt (najtańsza taryfa dystrybucyjna albo „obecna taryfa jest najtańsza”), wykres taryf G11 / G12 / G12w / G12sezON / G13active przy umowie z Pstryk oraz kafelki: Tarcza Pstryk, zużycie, tanie i drogie godziny, data danych.
 - **Sekcja 2. „Umowa kompleksowa Enea”:** własny werdykt (najtańsza oferta kompleksowa kontra obecna umowa z Pstryk) i jeden wspólny ranking wszystkich ofert z katalogu (Enea prawo wyboru, Enea EneoPewność) oraz własnego cennika, jeśli go zdefiniujesz. Pod wykresem panel pokazuje dla każdej oferty, których taryf ona nie obejmuje, oraz jej uwagi (warunki, ważność cennika, potwierdzenie oferty w Enei).
+- **Lista „Sprzedawca / oferta”** w nagłówku sekcji 2 zawęża do jednej oferty wykres, werdykt, listę brakujących taryf i uwagi; „Wszystkie oferty” to wspólny ranking. Wybór jest zapisany w encji HA, więc jest taki sam na każdym urządzeniu. Podsumowanie na górze zawsze liczy ze wszystkich ofert.
+- **Rozwijane tabele „Ceny w tej sekcji”** pod obiema sekcjami. Każda liczba jest podana brutto (duży druk), a pod nią netto (mały druk). Sekcja 1: stawki dystrybucji każdej taryfy na strefę, opłaty stałe oraz średnia cena energii Pstryk w okresie przed i po Tarczy, razem z opłatą handlową Pstryka. Sekcja 2: ceny pokazanej oferty (ofert) na strefę i opłata handlowa.
 
 Gdy inna opcja kosztuje tyle samo co obecna (po zaokrągleniu do groszy), panel pisze, że jest „równie tania”. Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel pojawia się po dodaniu integracji i znika razem z ostatnim wpisem. Żeby go ukryć, zmień kolejność lub widoczność pozycji w pasku bocznym (przytrzymaj nagłówek paska bocznego lub wybierz „Edytuj pasek boczny”).
 
@@ -334,11 +336,11 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `szacunek` | `true` when part of the hours of the month used for the Shield is missing from storage, so the rebate is an estimate. |
 | `ostrzezenia` | List of warning codes (see below). |
 | `kwh_na_strefe` | Consumption (kWh) per zone of the scenario's tariff. |
-| `vat` | VAT rate (fraction, e.g. `0.23`). The price table below is on the `total` sensors only; net amounts, PLN/kWh or PLN/month, 4 decimals. |
+| `vat` | VAT rate (fraction, e.g. `0.23`). The price attributes below are on the `total` sensors only and are net amounts (zł/kWh or zł/mies.); only the rates are rounded to 4 decimal places. |
 | `stawki_dystrybucji` | Distribution rate per zone: variable component + quality + renewables + cogeneration fees. |
 | `oplaty_dystrybucji_mc` | Monthly distribution fees: `sieciowa` (fixed component), `abonament`, `mocowa` (capacity fee). |
-| `ceny_energii` | Comprehensive offers and own price list: energy price per zone. |
-| `oplata_handlowa_mc` | Comprehensive offers and own price list: trading fee (PLN/month). |
+| `ceny_energii` | Comprehensive offers and own price list: energy price per zone (zł/kWh). |
+| `oplata_handlowa_mc` | Comprehensive offers and own price list: trading fee (zł/mies.). |
 | `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), from the own price list; for Pstryk the period average (`null` without readings). |
 | `srednia_cena_energii` | Pstryk only: `przed_tarcza` (before the Shield) and `po_tarczy` (after), average energy price including the service fee (PLN/kWh) over the period; `null` without readings. |
 | `powod` | Only when the result is unavailable: `koniec_przed_data`. |
@@ -390,6 +392,8 @@ The integration adds a **Porównanie taryf** panel (always in Polish, as Pstryk 
 - **Summary line** at the top: the current contract's cost for the selected period and the cheapest option overall across both sections (or a note that the current one is the cheapest or as cheap as another).
 - **Section 1, "Pstryk power + Enea Operator distribution":** its own verdict (the cheapest distribution tariff, or "the current tariff is the cheapest"), a chart of G11 / G12 / G12w / G12sezON / G13active under the Pstryk contract and tiles: Pstryk Shield, consumption, cheap and expensive hours, data date.
 - **Section 2, "Enea comprehensive contract":** its own verdict (the cheapest comprehensive offer versus the current Pstryk contract) and one shared ranking of all catalogue offers (Enea prawo wyboru, Enea EneoPewność) plus your own price list, if you define one. Under the chart the panel shows, per offer, which tariffs it does not cover and its notes (conditions, price list validity, confirming the offer with Enea).
+- **"Sprzedawca / oferta" (seller / offer) dropdown** in the section 2 header narrows the chart, verdict, missing-tariff list and notes to one offer; "Wszystkie oferty" (all offers) is the shared ranking. The choice is stored in the HA entity, so it is the same on every device. The summary line at the top always counts all offers.
+- **Collapsible "Ceny w tej sekcji" (prices in this section) tables** under both sections. Every number is shown gross (large) with the net value below it (small print). Section 1: each tariff's distribution rates per zone, the fixed fees, and Pstryk's average energy price over the period before and after the Shield, including Pstryk's trading fee. Section 2: the prices of the shown offer(s) per zone and the trading fee.
 
 When another option costs the same as the current one (after rounding to the cent), the panel says it is "as cheap". It reads everything from the integration's entities, so there is nothing to configure. The panel appears once the integration is added and disappears with the last config entry. To hide it, edit the sidebar (press and hold the sidebar title, or choose "Edit sidebar") and turn the item off.
 
