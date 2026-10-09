@@ -357,7 +357,7 @@ test("HTML tabeli: komórki — kwota ze znakiem, kolor ∝ różnicy, „≈”
   assert.match(html, /<td class="taniej najtansza" style="--a:45%" title="Enea EneoPewność \+ G13active: 750,00 zł">−50,00 zł<\/td>/);
   assert.match(html, /<td class="drozej" style="--a:70%" title="Enea EneoPewność \+ G11: 900,00 zł">\+100,00 zł<\/td>/);
   assert.match(html, /<td class="rowne" title="Enea prawo wyboru \+ G12w: 805,00 zł">≈ \+5,00 zł<\/td>/);
-  assert.match(html, /<td class="rowne kol-obecna" title="Pstryk \+ G12: 800,00 zł"><i class="teraz">teraz<\/i>0,00 zł<\/td>/);
+  assert.match(html, /<td class="rowne kol-obecna" title="Pstryk \+ G12: 800,00 zł"><i class="teraz">teraz<\/i> 0,00 zł<\/td>/);
   assert.match(html, /<td class="brak">—<\/td>/);
 });
 test("HTML tabeli: nazwy ofert, znaczniki, dymki i cena stała z atrybutów są escapowane", () => {

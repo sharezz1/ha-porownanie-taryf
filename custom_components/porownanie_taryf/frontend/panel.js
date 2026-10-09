@@ -330,7 +330,7 @@ export function htmlTabeli(t) {
     if (!c) return `<td class="brak${kol}">—</td>`;
     const klasy = `${c.klasa}${kol}${c.najtansza ? " najtansza" : ""}${c.najtanszaBez ? " najtansza-bez" : ""}`;
     const styl = c.klasa === "rowne" ? "" : ` style="--a:${Math.round(20 + 50 * c.sila)}%"`; // nasycenie koloru 20–70%
-    const tekst = c.obecny ? `<i class="teraz">teraz</i>${kwota(c.roznica, true)}` : `${c.klasa === "rowne" ? "≈ " : ""}${kwota(c.roznica, true)}`;
+    const tekst = c.obecny ? `<i class="teraz">teraz</i> ${kwota(c.roznica, true)}` : `${c.klasa === "rowne" ? "≈ " : ""}${kwota(c.roznica, true)}`;
     return `<td class="${klasy}"${styl} title="${esc(`${c.wiersz} + ${c.taryfa}: ${kwota(c.razem)}`)}">${tekst}</td>`;
   };
   const wiersz = (w) => `<tr><th scope="row">${esc(w.etykieta)}${w.znaczniki.map(znacznik).join("")}</th>`
@@ -355,8 +355,7 @@ h1 { margin: 0 0 0 12px; font-size: 20px; font-weight: 400; }
   display: flex; flex-direction: column; gap: 16px; }
 .karta { margin: 0; padding: 16px; background: var(--ha-card-background, var(--card-background-color));
   border: 1px solid var(--divider-color); border-radius: var(--ha-card-border-radius, 12px); }
-h2, h3 { margin: 0; font-weight: 500; }
-h3 { font-size: 18px; }
+h2 { margin: 0; font-weight: 500; }
 
 .okres { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .rodzaje { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -403,7 +402,7 @@ summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset:
 .kolory .kol-obecna { border-left: 2px solid var(--primary-color); border-right: 2px solid var(--primary-color); }
 .kolory td.najtansza { outline: 3px solid var(--primary-text-color); outline-offset: -1px; font-weight: 700; }
 .kolory td.najtansza-bez { outline: 2px dashed var(--primary-text-color); outline-offset: -1px; font-weight: 600; }
-.teraz { position: absolute; top: 1px; left: 50%; transform: translateX(-50%); font-size: 9px; font-style: normal; font-weight: 700; text-transform: uppercase; color: var(--primary-color); }
+.teraz { display: block; line-height: 1; margin-bottom: 2px; font-size: 9px; font-style: normal; font-weight: 700; text-transform: uppercase; color: var(--primary-color); }
 .statystyki { margin: 0; font-size: 13px; color: var(--secondary-text-color); }
 .statystyki b { color: var(--primary-text-color); font-weight: 600; }
 .ceny { margin: 12px 0 0; }
