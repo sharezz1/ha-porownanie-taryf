@@ -52,7 +52,7 @@ def test_katalog_sprzedawcow():
     natura = SPRZEDAWCY["tauron_natura_2026"]
     assert natura.oplata_mc == 25.61 and len(natura.uwagi) == 3
     pge = SPRZEDAWCY["pge_taryfowy_gtpa"]
-    assert pge.akcyza == 0.005 and pge.ceny["G11"]["calodobowa"] == 0.6170
+    assert pge.akcyza == 0.0 and pge.ceny["G11"]["calodobowa"] == 0.6220
     energa = SPRZEDAWCY["energa_podstawowa_2026"]
     assert energa.ceny["G12"] == {"dzien": 0.6080, "noc": 0.4037} and energa.ceny["G12w"] == {"szczyt": 0.6080, "pozaszczyt": 0.4037}  # jedna cena dla G12 i G12w
 

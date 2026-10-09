@@ -75,7 +75,7 @@ class Konfiguracja:
     kompleksowe: dict[str, Cennik]  # wszystkie oferty z katalogu, liczone równolegle
 
 
-# Katalog ofert kompleksowych. Ceny netto Z AKCYZĄ w cenie (stąd akcyza=0.0); wyjątek: PGE — cennik netto bez akcyzy (akcyza=0.005); VAT liczony od całości.
+# Katalog ofert kompleksowych. Ceny netto Z AKCYZĄ w cenie (stąd akcyza=0.0); VAT liczony od całości.
 # Oferta bez danej taryfy = brak scenariusza. Kolejność wpisów = kolejność w panelu przy remisie.
 SPRZEDAWCY: dict[str, Cennik] = {
     "enea_2026_wybor": Cennik("Enea", 10.49, 0.0, {
@@ -115,13 +115,13 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "Opłata handlowa: 0 zł/mies. do 31.12.2026, od 01.01.2027 — 25,61 zł/mies. netto; w obliczeniach przyjęto 25,61 (koszt docelowy — w 2026 r. realnie 0 zł).",
         "Ceny netto z cennika, z akcyzą; certyfikat pochodzenia energii z OZE; dostępna poza obszarem TAURON Dystrybucja.",
     )),
-    "pge_taryfowy_gtpa": Cennik("PGE", 9.99, 0.005, {
-        "G11": {"calodobowa": 0.6170},
-        "G12": {"dzien": 0.6975, "noc": 0.4367},
-        "G12w": {"szczyt": 0.7170, "pozaszczyt": 0.5027},
+    "pge_taryfowy_gtpa": Cennik("PGE", 9.99, 0.0, {
+        "G11": {"calodobowa": 0.6220},
+        "G12": {"dzien": 0.7025, "noc": 0.4417},
+        "G12w": {"szczyt": 0.7220, "pozaszczyt": 0.5077},
     }, oferta="cennik taryfowy", uwagi=(
         "„Cennik taryfowy dla Klientów z grup G korzystających z prawa wyboru Sprzedawcy” (GT-PA) — obowiązuje od 1.08.2025.",
-        "Ceny netto BEZ akcyzy — akcyza 0,005 zł/kWh doliczana poza VAT; cennik bezterminowy, bez gwarancji stałości cen.",
+        "Ceny netto z akcyzą (cennik podaje je bez akcyzy: doliczono 0,005 zł/kWh, akcyza jest w podstawie VAT); cennik bezterminowy, bez gwarancji stałości cen.",
         "Dla konsumentów w obszarach: Enea, Energa, TAURON (w obszarze PGE Dystrybucja PGE ma inne ceny).",
     )),
     "energa_podstawowa_2026": Cennik("Energa", 16.99, 0.0, {

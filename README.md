@@ -129,7 +129,7 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `oplaty_dystrybucji_mc` | Opłaty miesięczne dystrybucji: `sieciowa` (składnik stały), `abonament`, `mocowa`. |
 | `ceny_energii` | Oferty kompleksowe i własny cennik: cena energii na strefę (zł/kWh). |
 | `oplata_handlowa_mc` | Oferty kompleksowe i własny cennik: opłata handlowa (zł/mies.). |
-| `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), 0,005 dla oferty PGE (cennik netto bez akcyzy), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
+| `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
 | `srednia_cena_energii` | Tylko Pstryk: `przed_tarcza` i `po_tarczy`, średnia cena energii z obsługą (zł/kWh) w okresie; `null` bez odczytów. |
 | `powod` | Tylko gdy wynik jest niedostępny: `koniec_przed_data`. |
 
@@ -137,7 +137,7 @@ Sensory „kWh” mają tylko `okres_od`, `okres_do`, `pokrycie` i `dane_z`.
 
 ### Oferty kompleksowe
 
-Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**Enea**, **Tauron**, **PGE**, **Energa**). To wydanie dodaje oferty dla obszaru **Enea Operator**; kolejne obszary są w przygotowaniu. Ceny w katalogu są netto **z akcyzą** (wyjątek: cennik PGE — netto bez akcyzy, doliczanej osobno); VAT jest doliczany do całości.
+Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**Enea**, **Tauron**, **PGE**, **Energa**). To wydanie dodaje oferty dla obszaru **Enea Operator**; kolejne obszary są w przygotowaniu. Ceny w katalogu są netto **z akcyzą**; VAT jest doliczany do całości.
 
 **1. „Prawo wyboru” (`enea_2026_wybor`)** — taryfa dla klienta, który zmienił sprzedawcę i wraca do Enei, 2026: opłata handlowa 10,49 zł/mc netto.
 
@@ -192,13 +192,13 @@ Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**E
 
 **5. „Cennik taryfowy” GT-PA (`pge_taryfowy_gtpa`)** — cennik taryfowy PGE Obrót dla odbiorców z grup G korzystających z prawa wyboru sprzedawcy (obszary: Enea Operator, Energa-Operator, TAURON Dystrybucja; w obszarze PGE Dystrybucja PGE ma inne ceny), obowiązuje od 1.08.2025, bezterminowy — **bez gwarancji stałości cen**; opłata handlowa 9,99 zł/mc netto (12,29 zł brutto).
 
-| Taryfa | Ceny energii (zł/kWh netto, **bez akcyzy**) |
+| Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
 |---|---|
-| G11 | 0,6170 |
-| G12 | dzień 0,6975 · noc 0,4367 |
-| G12w | szczyt 0,7170 · pozaszczyt 0,5027 |
+| G11 | 0,6220 |
+| G12 | dzień 0,7025 · noc 0,4417 |
+| G12w | szczyt 0,7220 · pozaszczyt 0,5077 |
 
-- Uwaga na konwencję: cennik podaje ceny **bez akcyzy** — integracja dolicza akcyzę 0,005 zł/kWh poza VAT (w odróżnieniu od pozostałych ofert katalogu, gdzie ceny są z akcyzą). Grupa G12N z cennika PGE nie ma odpowiednika u Enea Operator — pomijana.
+- Uwaga na konwencję: cennik podaje ceny bez akcyzy — do tabeli doliczono akcyzę 0,005 zł/kWh (jest w podstawie VAT, np. G11 brutto (0,6170 + 0,005) · 1,23 = 0,7651), więc, jak w pozostałych ofertach katalogu, ceny są z akcyzą. Grupa G12N z cennika PGE nie ma odpowiednika u Enea Operator — pomijana.
 - **Źródło:** Cennik taryfowy GT-PA (od 1.08.2025), `https://www.pge-obrot.pl/content/download/f9c840579ac156bf0860aefc6f0c846a/file/cennik-taryfowy-gtpa-082025.pdf`; lista OSD dla umowy kompleksowej: `https://www.pge-obrot.pl/content/download/f7dc6a2d2dc57624a76988b2dee26604/file/lista-operatorow-01.02.2026.pdf`.
 
 **6. „Podstawowa 2 lata” (`energa_podstawowa_2026`)** — oferta Energi: umowę można zawrzeć do **31.12.2026**, stałe warunki przez **24 miesiące**; opłata handlowa 16,99 zł/mc netto (20,90 zł/mc brutto z e-fakturą; 25,90 zł brutto z fakturą papierową). Jedna cena dla G12 i G12w.
@@ -387,7 +387,7 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `oplaty_dystrybucji_mc` | Monthly distribution fees: `sieciowa` (fixed component), `abonament`, `mocowa` (capacity fee). |
 | `ceny_energii` | Comprehensive offers and own price list: energy price per zone (zł/kWh). |
 | `oplata_handlowa_mc` | Comprehensive offers and own price list: trading fee (zł/mies.). |
-| `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), 0.005 for the PGE offer (price list is net of excise), from the own price list; for Pstryk the period average (`null` without readings). |
+| `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), from the own price list; for Pstryk the period average (`null` without readings). |
 | `srednia_cena_energii` | Pstryk only: `przed_tarcza` (before the Shield) and `po_tarczy` (after), average energy price including the service fee (PLN/kWh) over the period; `null` without readings. |
 | `powod` | Only when the result is unavailable: `koniec_przed_data`. |
 
@@ -450,13 +450,13 @@ Besides the Pstryk scenarios the integration has a built-in catalogue of compreh
 
 **5. "Cennik taryfowy" GT-PA (`pge_taryfowy_gtpa`)** — PGE Obrót's tariff price list for G-group customers using the right to choose a seller (areas: Enea Operator, Energa-Operator, TAURON Dystrybucja; in the PGE Dystrybucja area PGE has different prices), in force since 1 Aug 2025, open-ended — **no price-stability guarantee**; trading fee 9.99 PLN/month net (12.29 PLN gross).
 
-| Tariff | Energy prices (PLN/kWh net, **excise NOT included**) |
+| Tariff | Energy prices (PLN/kWh net, excise included) |
 |---|---|
-| G11 | 0.6170 |
-| G12 | day 0.6975 · night 0.4367 |
-| G12w | peak 0.7170 · off-peak 0.5027 |
+| G11 | 0.6220 |
+| G12 | day 0.7025 · night 0.4417 |
+| G12w | peak 0.7220 · off-peak 0.5077 |
 
-- Mind the convention: the price list quotes prices **without excise** — the integration adds 0.005 PLN/kWh outside VAT (unlike the other catalogue offers, whose prices include excise). The G12N group from PGE's list has no Enea Operator counterpart and is skipped.
+- Mind the convention: the price list quotes prices without excise — 0.005 PLN/kWh was added to the table (excise is in the VAT base, e.g. G11 gross (0.6170 + 0.005) · 1.23 = 0.7651), so, as with the other catalogue offers, prices include excise. The G12N group from PGE's list has no Enea Operator counterpart and is skipped.
 - **Source:** the GT-PA tariff price list (since 1 Aug 2025), `https://www.pge-obrot.pl/content/download/f9c840579ac156bf0860aefc6f0c846a/file/cennik-taryfowy-gtpa-082025.pdf`; the list of DSOs covered by the comprehensive contract: `https://www.pge-obrot.pl/content/download/f7dc6a2d2dc57624a76988b2dee26604/file/lista-operatorow-01.02.2026.pdf`.
 
 **6. "Podstawowa 2 lata" (Basic 2 years, `energa_podstawowa_2026`)** — an Energa offer: the contract can be signed until **31 Dec 2026**, terms are fixed for **24 months**; trading fee 16.99 PLN/month net (20.90 PLN/month gross with e-invoicing; 25.90 PLN gross with a paper invoice). One price for both G12 and G12w.
