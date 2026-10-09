@@ -292,7 +292,7 @@ const T = {
   sprzedawca: "Sprzedawca", ceny: "Ceny w tej sekcji", brakDanych: "brak danych",
   taryfa: "Taryfa", strefa: "Strefa", oferta: "Oferta", ofertaTaryfa: "Oferta i taryfa", cenyEnergii: "Ceny energii", cenaKwh: "Cena za kWh", doplaty: "Opłaty stałe (zł/mies.)",
   stawkiDystr: "Dystrybucja: stawki za kWh", srednia: "Pstryk: średnia cena energii w okresie (z opłatą handlową Pstryka)", pozycja: "Pozycja", przedTarcza: "przed Tarczą", poTarczy: "po Tarczy",
-  akcyza: "Akcyza (bez VAT)", handlowa: "Opłata handlowa", razemOplaty: "Opłaty",
+  akcyza: "Akcyza", akcyzaBezVat: "Akcyza (bez VAT)", handlowa: "Opłata handlowa", razemOplaty: "Opłaty",
   tarcza: "Tarcza Pstryk", zuzycie: "Zużycie", tanie: "Tanie godziny", drogie: "Drogie godziny", dane: "Dane",
   podTarcza: "rabat już odjęty od kosztu", podZuzycie: "energia pobrana z sieci", podStrefy: "w obecnej taryfie",
   podDane: "godzin z odczytem licznika",
@@ -316,7 +316,7 @@ export function komorkaCeny(netto, vat, jednostka = "zł/kWh", miejsca = 4) {
   const f = (x) => new Intl.NumberFormat("pl", { minimumFractionDigits: miejsca, maximumFractionDigits: miejsca, useGrouping: "always" }).format(x);
   return `<td class="cena"><span class="brutto">${f(netto * (1 + vat))} ${jednostka}</span><small>netto ${f(netto)}</small></td>`;
 }
-const komorkaBezVat = (x) => // akcyza: poza podstawą VAT, więc jedna liczba
+const komorkaBezVat = (x) => // akcyza Pstryk (z API): poza podstawą VAT, więc jedna liczba
   Number.isFinite(x) ? `<td class="cena"><span class="brutto">${new Intl.NumberFormat("pl", { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(x)} zł/kWh</span></td>` : `<td class="cena brak">${T.brakDanych}</td>`;
 const tabela = (podpis, naglowki, wiersze) =>
   `<div class="tabela"><table><caption>${podpis}</caption><thead><tr>${naglowki.map((h) => `<th scope="col">${h}</th>`).join("")}</tr></thead><tbody>${wiersze.join("")}</tbody></table></div>`;
@@ -344,7 +344,7 @@ export function htmlCenSekcji1(dane, ui) {
   const pstryk = tabela(T.srednia, [`<span class="ukryte">${T.pozycja}</span>`, T.cenaKwh], [
     `<tr><th scope="row">${T.przedTarcza}</th>${komorkaCeny(sr.przed_tarcza, p?.vat)}</tr>`,
     `<tr><th scope="row">${T.poTarczy}</th>${komorkaCeny(sr.po_tarczy, p?.vat)}</tr>`,
-    ...(Number.isFinite(p?.ceny.akcyza) ? [`<tr><th scope="row">${T.akcyza}</th>${komorkaBezVat(p.ceny.akcyza)}</tr>`] : []),
+    ...(Number.isFinite(p?.ceny.akcyza) ? [`<tr><th scope="row">${T.akcyzaBezVat}</th>${komorkaBezVat(p.ceny.akcyza)}</tr>`] : []),
   ]);
   return details("s1", ui, stawki + stale + pstryk);
 }
@@ -367,7 +367,7 @@ export function htmlCenSekcji2(dane, widok, ui) {
   const oplaty = tabela(T.razemOplaty, [T.oferta, T.handlowa],
     wierszeOfert.flatMap((s) => [
       `<tr><th scope="row">${nazwaOferty(s)}</th>${komorkaCeny(s.ceny.handlowaMc, s.vat, "zł/mies.", 2)}</tr>`,
-      ...(s.ceny.akcyza > 0 ? [`<tr><th scope="row">${nazwaOferty(s)} · ${T.akcyza}</th>${komorkaBezVat(s.ceny.akcyza)}</tr>`] : []),
+      ...(s.ceny.akcyza > 0 ? [`<tr><th scope="row">${nazwaOferty(s)} · ${T.akcyza}</th>${komorkaCeny(s.ceny.akcyza, s.vat)}</tr>`] : []),
     ]));
   return details("s2", ui, energia + oplaty);
 }

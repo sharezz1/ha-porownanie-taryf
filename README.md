@@ -73,7 +73,7 @@ Godziny liczone są wg zegara ściennego (Europe/Warsaw), czyli lokalnego czasu 
 
 - **VAT i stawki dystrybucyjne:** VAT (domyślnie 0,23) i wszystkie stawki netto presetu.
 - **Tarcza Pstryk:** dla 2026 i 2027 — limit średniej ceny, podstawa (brutto/netto), czy w średniej liczy się opłata handlowa, daty obowiązywania.
-- **Własny cennik sprzedawcy:** jeden cennik (obok wbudowanych ofert kompleksowych, patrz „Oferty kompleksowe”): nazwa, opłata handlowa (zł/mc netto), akcyza (domyślnie 0,005 zł/kWh) i ceny netto energii w strefach wybranych taryf. Taryfa uczestniczy w porównaniu tylko z kompletem stref. Pusta nazwa usuwa cennik.
+- **Własny cennik sprzedawcy:** jeden cennik (obok wbudowanych ofert kompleksowych, patrz „Oferty kompleksowe”): nazwa, opłata handlowa (zł/mc netto), akcyza (zł/kWh netto, wchodzi do podstawy VAT; domyślnie 0,005) i ceny netto energii w strefach wybranych taryf. Taryfa uczestniczy w porównaniu tylko z kompletem stref. Pusta nazwa usuwa cennik.
 
 ### Encje
 
@@ -129,7 +129,7 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `oplaty_dystrybucji_mc` | Opłaty miesięczne dystrybucji: `sieciowa` (składnik stały), `abonament`, `mocowa`. |
 | `ceny_energii` | Oferty kompleksowe i własny cennik: cena energii na strefę (zł/kWh). |
 | `oplata_handlowa_mc` | Oferty kompleksowe i własny cennik: opłata handlowa (zł/mies.). |
-| `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
+| `akcyza_kwh` | Akcyza zł/kWh netto (objęta VAT): 0 w katalogu (ceny z akcyzą), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
 | `srednia_cena_energii` | Tylko Pstryk: `przed_tarcza` i `po_tarczy`, średnia cena energii z obsługą (zł/kWh) w okresie; `null` bez odczytów. |
 | `powod` | Tylko gdy wynik jest niedostępny: `koniec_przed_data`. |
 
@@ -138,6 +138,8 @@ Sensory „kWh” mają tylko `okres_od`, `okres_do`, `pokrycie` i `dane_z`.
 ### Oferty kompleksowe
 
 Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**Enea**, **Tauron**, **PGE**, **Energa**). To wydanie dodaje oferty dla obszaru **Enea Operator**; kolejne obszary są w przygotowaniu. Ceny w katalogu są netto **z akcyzą**; VAT jest doliczany do całości.
+
+**0.6.1:** poprawka — akcyza PGE i własnego cennika wchodzi do podstawy VAT.
 
 **1. „Prawo wyboru” (`enea_2026_wybor`)** — taryfa dla klienta, który zmienił sprzedawcę i wraca do Enei, 2026: opłata handlowa 10,49 zł/mc netto.
 
@@ -251,7 +253,7 @@ Gdy inna opcja kosztuje tyle samo co obecna (po zaokrągleniu do groszy), panel 
 
 - **Dystrybucja:** stawki zmienne × kWh w strefach (wg zegara ściennego Europe/Warsaw) + opłaty stałe proporcjonalnie do zmierzonych godzin miesiąca, razem z VAT.
 - **Sprzedaż Pstryk:** rzeczywiste koszty z API. **Tarcza** jest modelowana wzorem: rabat = nadwyżka średniej miesięcznej ceny ponad limit × zużycie. Dla miesiąca objętego okresem tylko częściowo średnia liczona jest z całego miesiąca, a rabat przypisany proporcjonalnie do kWh.
-- **Oferta kompleksowa (Enea) i własny cennik:** ceny netto w strefach wybranej taryfy × kWh + opłata handlowa, z VAT, plus akcyza poza VAT.
+- **Oferta kompleksowa (Enea) i własny cennik:** ceny netto w strefach wybranej taryfy × kWh + opłata handlowa, z VAT, plus akcyza netto (w podstawie VAT).
 
 ### Testy
 
@@ -331,7 +333,7 @@ Hours follow the wall clock (Europe/Warsaw), i.e. local civil time. G12sezON net
 
 - **VAT and distribution rates:** VAT (default 0.23) and all net preset rates.
 - **Pstryk Shield:** for 2026 and 2027 — average price limit, basis (gross/net), whether the trading fee counts towards the average, validity dates.
-- **Own seller price list:** one price list (besides the built-in comprehensive offers, see "Comprehensive offers"): name, trading fee (PLN/month net), excise duty (default 0.005 PLN/kWh) and net energy prices per zone for the tariffs you choose. A tariff takes part only with all of its zones filled in. An empty name removes the price list.
+- **Own seller price list:** one price list (besides the built-in comprehensive offers, see "Comprehensive offers"): name, trading fee (PLN/month net), excise duty (PLN/kWh net, included in the VAT base; default 0.005) and net energy prices per zone for the tariffs you choose. A tariff takes part only with all of its zones filled in. An empty name removes the price list.
 
 ### Entities
 
@@ -387,7 +389,7 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `oplaty_dystrybucji_mc` | Monthly distribution fees: `sieciowa` (fixed component), `abonament`, `mocowa` (capacity fee). |
 | `ceny_energii` | Comprehensive offers and own price list: energy price per zone (zł/kWh). |
 | `oplata_handlowa_mc` | Comprehensive offers and own price list: trading fee (zł/mies.). |
-| `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), from the own price list; for Pstryk the period average (`null` without readings). |
+| `akcyza_kwh` | Excise PLN/kWh net (subject to VAT): 0 for the catalogue (prices include excise), from the own price list; for Pstryk the period average (`null` without readings). |
 | `srednia_cena_energii` | Pstryk only: `przed_tarcza` (before the Shield) and `po_tarczy` (after), average energy price including the service fee (PLN/kWh) over the period; `null` without readings. |
 | `powod` | Only when the result is unavailable: `koniec_przed_data`. |
 
@@ -395,7 +397,9 @@ The "kWh" sensors only have `okres_od`, `okres_do`, `pokrycie` and `dane_z`.
 
 ### Comprehensive offers
 
-Besides the Pstryk scenarios the integration has a built-in catalogue of comprehensive offers (**Enea**, **Tauron**, **PGE**, **Energa**). This release adds offers for the **Enea Operator** area; more areas are in preparation. All prices are net **including excise duty** (exception: PGE's price list is net of excise, added separately); VAT is added to the whole.
+Besides the Pstryk scenarios the integration has a built-in catalogue of comprehensive offers (**Enea**, **Tauron**, **PGE**, **Energa**). This release adds offers for the **Enea Operator** area; more areas are in preparation. All prices are net **including excise duty**; VAT is added to the whole.
+
+**0.6.1:** fix — excise duty for PGE and the own price list is part of the VAT base.
 
 **1. "Prawo wyboru" ("right to choose", `enea_2026_wybor`)** — the tariff for a customer who switched seller and returns to Enea, 2026: trading fee 10.49 PLN/month net.
 
@@ -509,7 +513,7 @@ When another option costs the same as the current one (after rounding to the cen
 
 - **Distribution:** variable rates × kWh per zone (by Europe/Warsaw wall-clock time) + fixed fees prorated by the measured share of the month's hours, including VAT.
 - **Pstryk sales:** actual costs from the API. The **Shield** is modelled by a formula: rebate = the amount by which the monthly average price exceeds the limit × consumption. For a month covered only partly by the period, the average is computed over the whole month and the rebate is assigned proportionally to kWh.
-- **Comprehensive offer (Enea) and own price list:** net prices per zone of the chosen tariff × kWh + trading fee, with VAT, plus excise duty outside VAT.
+- **Comprehensive offer (Enea) and own price list:** net prices per zone of the chosen tariff × kWh + trading fee, with VAT, plus net excise duty (included in the VAT base).
 
 ### Tests
 

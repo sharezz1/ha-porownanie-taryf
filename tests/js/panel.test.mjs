@@ -582,7 +582,7 @@ test("ceny sekcji 2: brak atrybutów oferty → „brak danych”; nazwy escapow
   const eid = Object.keys(h.entities).find((e) => h.states[e].attributes.scenariusz === "cennik_G12" && h.entities[e].translation_key === "razem");
   h.states[eid].attributes.akcyza_kwh = 0.005;
   const dc = zbierzDane(h);
-  assert.ok(htmlCenSekcji2(dc, widokSekcji2(dc)).includes("Własny cennik · Akcyza (bez VAT)"));
+  assert.ok(htmlCenSekcji2(dc, widokSekcji2(dc)).includes("Własny cennik · Akcyza</th>"));
 });
 test("brutto z tabeli × kWh odtwarza kwotę sekcji (syntetycznie)", () => {
   // 100 kWh po 0,3214 netto → 39,53 zł brutto; tyle samo co netto × 1,23 liczone na sumie

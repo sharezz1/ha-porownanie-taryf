@@ -98,7 +98,7 @@ def test_policz_wrzesien():
     assert g.dystrybucja == pytest.approx(267.98994) and g.razem == pytest.approx(710.78994) and g.netto == pytest.approx(578.55117)
     assert w.scenariusze["pstryk_G12w"].razem - g.razem == pytest.approx(-14.225, abs=1e-3)
     c = w.scenariusze["cennik_G12"]
-    assert c.tarcza == 0.0 and c.sprzedaz_przed == pytest.approx(473.46) and c.razem == pytest.approx(473.46 + 267.98994)
+    assert c.tarcza == 0.0 and c.sprzedaz_przed == pytest.approx(474.288) and c.razem == pytest.approx(474.288 + 267.98994)
     assert g.ostrzezenia == ()
     assert w.scenariusze["pstryk_G11"].razem == pytest.approx(745.93596)
     assert w.scenariusze["pstryk_G12sezON"].razem == pytest.approx(710.78994)

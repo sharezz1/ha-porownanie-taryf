@@ -33,4 +33,5 @@ def sprzedaz_cennik(
     podstawa = sum(r.kwh * ceny[strefa(taryfa, r.start_local, tanie_g12)] for r in odczyty)
     podstawa += cennik.oplata_mc * udzial_miesiecy(odczyty)
     akcyza = cennik.akcyza * sum(r.kwh for r in odczyty)
-    return WynikSprzedazy(podstawa * (1 + vat) + akcyza, podstawa + akcyza)
+    # akcyza netto wchodzi do podstawy VAT (art. 29a ust. 6 ustawy o VAT)
+    return WynikSprzedazy((podstawa + akcyza) * (1 + vat), podstawa + akcyza)

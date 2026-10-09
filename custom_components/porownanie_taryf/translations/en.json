@@ -133,7 +133,7 @@
         },
         "data_description": {
           "nazwa": "Shown in entity names, e.g. \"Enea + G12\".",
-          "akcyza": "Added on top of VAT. Default 0.005 PLN/kWh."
+          "akcyza": "Net amount, included in the VAT base. Default 0.005 PLN/kWh."
         }
       }
     },

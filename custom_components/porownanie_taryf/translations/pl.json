@@ -133,7 +133,7 @@
         },
         "data_description": {
           "nazwa": "Wyświetlana w nazwach encji, np. „Enea + G12”.",
-          "akcyza": "Doliczana poza VAT. Domyślnie 0,005 zł/kWh."
+          "akcyza": "Kwota netto, wchodzi do podstawy VAT. Domyślnie 0,005 zł/kWh."
         }
       }
     },
