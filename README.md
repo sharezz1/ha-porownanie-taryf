@@ -84,7 +84,6 @@ Wszystkie encje należą do jednego urządzenia (usługi) „Porównanie taryf�
 | Encja | Działanie |
 |---|---|
 | `select` Okres | Dzień / Miesiąc / Rok / Zakres własny (domyślnie Miesiąc). |
-| `select` Sprzedawca | Oferta kompleksowa pokazywana w sekcji 2 panelu: Wszystkie oferty (domyślnie) / Enea — prawo wyboru / Enea — EneoPewność / Tauron — Twój Extra Elektryk 24H / Tauron — Energia dla natury i pszczół / PGE — cennik taryfowy / Energa — Podstawowa 2 lata / Własny cennik (gdy zdefiniowany). Lista jest grupowana po sprzedawcy. Tylko filtruje widok panelu, nie zmienia liczb; wybór spoza listy wraca do „Wszystkie oferty”. |
 | `date` Data | Dzień (lub miesiąc/rok zawierający tę datę, lub początek zakresu). Domyślnie 1. dzień poprzedniego miesiąca. |
 | `date` Koniec zakresu | Używany tylko w trybie „Zakres własny”. Domyślnie równy Dacie (zakres jednodniowy). |
 
@@ -114,6 +113,9 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `oferta` | Nazwa oferty: `prawo wyboru` albo `EneoPewność` (Enea); pusta dla Pstryk i własnego cennika. |
 | `uwagi` | Lista uwag do oferty (warunki, ważność cennika); pusta dla Pstryk i własnego cennika. |
 | `id_oferty` | Klucz oferty z katalogu (np. `enea_eneopewnosc_2026`), `cennik` dla własnego cennika, pusty dla Pstryk (sensory `razem` i `roznica`). |
+| `cena_do` | Do kiedy oferta gwarantuje stałą cenę (np. `36 mies.`, `do 09.2027`); pusty dla ofert bez gwarancji, Pstryk i własnego cennika. |
+| `znaczniki` | Lista par `[etykieta, dymek]` — krótkie znaczniki oferty pokazywane w panelu; pusta dla Pstryk i własnego cennika. |
+| `taryfy` | Uporządkowana lista taryf liczonych przez integrację (kolejność kolumn tabeli w panelu). |
 | `taryfa` | Taryfa dystrybucyjna scenariusza, np. `G12`. |
 | `obecny` | `true` dla scenariusza obecnej taryfy. |
 | `sprzedaz_przed` | Sprzedaż brutto przed Tarczą. |
@@ -140,6 +142,8 @@ Sensory „kWh” mają tylko `okres_od`, `okres_do`, `pokrycie` i `dane_z`.
 Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**Enea**, **Tauron**, **PGE**, **Energa**). To wydanie dodaje oferty dla obszaru **Enea Operator**; kolejne obszary są w przygotowaniu. Ceny w katalogu są netto **z akcyzą**; VAT jest doliczany do całości.
 
 **0.6.1:** poprawka — akcyza PGE i własnego cennika wchodzi do podstawy VAT.
+
+**0.7.0 (zmiana łamiąca):** panel to teraz jedna tabela oferta × taryfa (patrz „Panel”). Encja `select` **Sprzedawca** została usunięta — po aktualizacji jej wpis znika z rejestru, więc automatyzacje, szablony i karty odwołujące się do `select.porownanie_taryf_sprzedawca` trzeba poprawić. Sensory mają nowe atrybuty `cena_do`, `znaczniki` i `taryfy`; liczby i pozostałe encje bez zmian.
 
 **1. „Prawo wyboru” (`enea_2026_wybor`)** — taryfa dla klienta, który zmienił sprzedawcę i wraca do Enei, 2026: opłata handlowa 10,49 zł/mc netto.
 
@@ -217,21 +221,22 @@ Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**E
 Pozostałe informacje:
 
 - Scenariusze katalogowe mają `grupa` = `kompleksowa`, `sprzedawca` = nazwa sprzedawcy (`Enea`, `Tauron`, `PGE`, `Energa`), a oferty rozróżnia atrybut `oferta` i klucz scenariusza. Własny cennik ma tę samą `grupę`, `sprzedawca` to jego nazwa, a `oferta` jest pusta; wszystkie mogą występować jednocześnie.
-- Ofertę pokazywaną w sekcji 2 panelu wybierasz encją `select` Sprzedawca (nie zmienia obliczeń); lista jest grupowana po sprzedawcy (Enea → Tauron → PGE → Energa, u góry „Wszystkie oferty”, na końcu własny cennik). Ważność cenników: „prawo wyboru” — 2026; „EneoPewność” — umowy od 1.10 do 31.12.2026; „Twój Extra Elektryk 24H” i „Energia dla natury i pszczół” — umowy do 31.10.2026; „Podstawowa 2 lata” — umowy do 31.12.2026; „Cennik taryfowy” PGE — bezterminowy.
+- Ważność cenników: „prawo wyboru” — 2026; „EneoPewność” — umowy od 1.10 do 31.12.2026; „Twój Extra Elektryk 24H” i „Energia dla natury i pszczół” — umowy do 31.10.2026; „Podstawowa 2 lata” — umowy do 31.12.2026; „Cennik taryfowy” PGE — bezterminowy.
 
 **Aktualizacja z v0.3: zmiana nazw encji oferty kompleksowej.** Klucz scenariusza zawiera teraz identyfikator oferty: `kompleksowa_G12` zmienił się na `kompleksowa_enea_2026_wybor_G12` (i analogicznie dla G11, G12w, oraz encji `razem` i `roznica`). Po aktualizacji stare encje oferty Enea znikają z rejestru, a w ich miejsce powstają nowe, z nowymi identyfikatorami. **Zaktualizuj automatyzacje, szablony i karty, które odwoływały się do starych encji**. Encje Pstryk i własnego cennika zostają bez zmian.
 
 ### Panel „Porównanie taryf”
 
-Integracja sama dodaje do paska bocznego HA panel **Porównanie taryf** (ikona wagi, widoczny dla wszystkich użytkowników). Panel składa się z linijki podsumowania i dwóch sekcji, które mają wspólną skalę pasków:
+Integracja sama dodaje do paska bocznego HA panel **Porównanie taryf** (ikona wagi, widoczny dla wszystkich użytkowników). Układ, od góry:
 
-- **Linijka podsumowania** na górze: kwota obecnej umowy za wybrany okres i najtańsza opcja ogółem z obu sekcji (albo informacja, że obecna jest najtańsza lub równie tania jak inna).
-- **Sekcja 1. „Prąd z Pstryka + dystrybucja Enea Operator”:** własny werdykt (najtańsza taryfa dystrybucyjna albo „obecna taryfa jest najtańsza”), wykres taryf G11 / G12 / G12w / G12sezON / G13active przy umowie z Pstryk oraz kafelki: Tarcza Pstryk, zużycie, tanie i drogie godziny, data danych.
-- **Sekcja 2. „Umowa kompleksowa”:** własny werdykt (najtańsza oferta kompleksowa kontra obecna umowa z Pstryk) i jeden wspólny ranking wszystkich ofert z katalogu (Enea, Tauron, PGE, Energa) oraz własnego cennika, jeśli go zdefiniujesz. Pod wykresem panel pokazuje dla każdej oferty, których taryf ona nie obejmuje, oraz jej uwagi (warunki i ważność cennika).
-- **Lista „Sprzedawca / oferta”** w nagłówku sekcji 2 zawęża do jednej oferty wykres, werdykt, listę brakujących taryf i uwagi; „Wszystkie oferty” to wspólny ranking. Wybór jest zapisany w encji HA, więc jest taki sam na każdym urządzeniu. Podsumowanie na górze zawsze liczy ze wszystkich ofert.
-- **Rozwijane tabele „Ceny w tej sekcji”** pod obiema sekcjami. Każda liczba jest podana brutto (duży druk), a pod nią netto (mały druk). Sekcja 1: stawki dystrybucji każdej taryfy na strefę, opłaty stałe oraz średnia cena energii Pstryk w okresie przed i po Tarczy, razem z opłatą handlową Pstryka. Sekcja 2: ceny pokazanej oferty (ofert) na strefę i opłata handlowa.
+- **Pasek okresu:** Dzień / Miesiąc / Rok / Zakres, strzałki ←/→ i pola dat dla zakresu.
+- **Ostrzeżenia** (np. niepełne dane) — krótka lista nad tabelą.
+- **Linijka odpowiedzi:** najtańsza oferta z taryfą i o ile złotych mniej niż obecna umowa. Gdy oszczędność wymaga zmiany taryfy u operatora, panel pokazuje najlepszą opcję bez zmiany taryfy, a obok wynik po zmianie. Gdy wszystkie różnice są poniżej 1% kosztu obecnej umowy, pisze, że Twoja umowa jest najtańsza.
+- **Tabela oferta × taryfa:** wiersz to oferta (Pstryk, oferty z katalogu, własny cennik), kolumna to taryfa dystrybucyjna. Komórka pokazuje różnicę względem obecnej umowy w zł: zielona — taniej, czerwona — drożej (im mocniejszy kolor, tym większa różnica), szara z „≈” — różnica poniżej 1%. Obecna umowa ma podpis „teraz”, najtańsza komórka gruby obrys, najtańsza bez zmiany taryfy — obrys przerywany. Najedź na komórkę, żeby zobaczyć pełny koszt okresu. Kolumna „cena stała” pokazuje, do kiedy oferta gwarantuje cenę, a pigułki przy nazwie oferty (np. „Tarcza −134 zł”, „realnie taniej”) mają dymki z wyjaśnieniem. Na telefonie tabela przewija się w poziomie, a nazwy ofert zostają na miejscu.
+- **Linijka statystyk:** zużycie, udział tanich godzin i Tarcza Pstryk (gdy rabat jest większy od zera).
+- **Zwinięte sekcje „Ceny i stawki” i „Uwagi do ofert”:** w pierwszej każda liczba jest podana brutto (duży druk), a pod nią netto (mały druk) — stawki dystrybucji na strefę, opłaty stałe, średnia cena energii Pstryk przed i po Tarczy oraz ceny energii i opłaty handlowe ofert; w drugiej warunki i ważność cenników.
 
-Gdy inna opcja kosztuje tyle samo co obecna (po zaokrągleniu do groszy), panel pisze, że jest „równie tania”. Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel pojawia się po dodaniu integracji i znika razem z ostatnim wpisem. Żeby go ukryć, zmień kolejność lub widoczność pozycji w pasku bocznym (przytrzymaj nagłówek paska bocznego lub wybierz „Edytuj pasek boczny”).
+Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel pojawia się po dodaniu integracji i znika razem z ostatnim wpisem. Żeby go ukryć, zmień kolejność lub widoczność pozycji w pasku bocznym (przytrzymaj nagłówek paska bocznego lub wybierz „Edytuj pasek boczny”).
 
 ### Kody ostrzeżeń
 
@@ -344,7 +349,6 @@ All entities belong to a single device (service) named "Porównanie taryf", so t
 | Entity | Behaviour |
 |---|---|
 | `select` Period | Day / Month / Year / Custom range (default Month). |
-| `select` Seller | Comprehensive offer shown in panel section 2: All offers (default) / Enea — right to choose / Enea — EneoPewność / Tauron — Extra Electrician 24H / Tauron — Energy for Nature and Bees / PGE — tariff price list / Energa — Basic 2 years / Own price list (when defined). The list is grouped by seller. It only filters the panel view and does not change any figure; a value outside the list falls back to "All offers". |
 | `date` Date | The day (or the month/year containing the date, or the start of the range). Defaults to the 1st day of the previous month. |
 | `date` Range end | Used only in "Custom range" mode. Defaults to the Date (a one-day range). |
 
@@ -374,6 +378,9 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `oferta` | Offer name: `prawo wyboru` or `EneoPewność` (Enea); empty for Pstryk and an own price list. |
 | `uwagi` | List of notes on the offer (conditions, price list validity); empty for Pstryk and an own price list. |
 | `id_oferty` | Catalogue offer key (e.g. `enea_eneopewnosc_2026`), `cennik` for the own price list, empty for Pstryk (`total` and `difference` sensors). |
+| `cena_do` | Until when the offer guarantees a fixed price (e.g. `36 mies.`, `do 09.2027`); empty for offers without a guarantee, Pstryk and an own price list. |
+| `znaczniki` | List of `[label, tooltip]` pairs — short offer tags shown in the panel; empty for Pstryk and an own price list. |
+| `taryfy` | Ordered list of the tariffs the integration computes (the column order of the panel table). |
 | `taryfa` | The scenario's distribution tariff, e.g. `G12`. |
 | `obecny` | `true` for the current tariff's scenario. |
 | `sprzedaz_przed` | Gross sales before the Shield. |
@@ -400,6 +407,8 @@ The "kWh" sensors only have `okres_od`, `okres_do`, `pokrycie` and `dane_z`.
 Besides the Pstryk scenarios the integration has a built-in catalogue of comprehensive offers (**Enea**, **Tauron**, **PGE**, **Energa**). This release adds offers for the **Enea Operator** area; more areas are in preparation. All prices are net **including excise duty**; VAT is added to the whole.
 
 **0.6.1:** fix — excise duty for PGE and the own price list is part of the VAT base.
+
+**0.7.0 (breaking change):** the panel is now a single offer × tariff table (see "Panel"). The **Sprzedawca** (seller) `select` entity was removed — after the update its registry entry disappears, so automations, templates and cards that referenced `select.porownanie_taryf_sprzedawca` must be fixed. Sensors have new attributes `cena_do`, `znaczniki` and `taryfy`; the figures and the other entities are unchanged.
 
 **1. "Prawo wyboru" ("right to choose", `enea_2026_wybor`)** — the tariff for a customer who switched seller and returns to Enea, 2026: trading fee 10.49 PLN/month net.
 
@@ -477,21 +486,22 @@ Besides the Pstryk scenarios the integration has a built-in catalogue of compreh
 Other notes:
 
 - Catalogue scenarios have `grupa` = `kompleksowa`, `sprzedawca` = the seller's name (`Enea`, `Tauron`, `PGE`, `Energa`), and the offers are told apart by the `oferta` attribute and the scenario key. An own price list has the same `grupa`, its name as `sprzedawca` and an empty `oferta`; all of them can exist at once.
-- The offer shown in panel section 2 is chosen with the Seller `select` entity (it does not change any calculation); the list is grouped by seller (Enea → Tauron → PGE → Energa, with "All offers" at the top and the own price list at the bottom). Price list validity: "prawo wyboru" — 2026; "EneoPewność" — contracts from 1 Oct to 31 Dec 2026; "Twój Extra Elektryk 24H" and "Energia dla natury i pszczół" — contracts until 31 Oct 2026; "Podstawowa 2 lata" — contracts until 31 Dec 2026; PGE's "Cennik taryfowy" — open-ended.
+- Price list validity: "prawo wyboru" — 2026; "EneoPewność" — contracts from 1 Oct to 31 Dec 2026; "Twój Extra Elektryk 24H" and "Energia dla natury i pszczół" — contracts until 31 Oct 2026; "Podstawowa 2 lata" — contracts until 31 Dec 2026; PGE's "Cennik taryfowy" — open-ended.
 
 **Upgrading from v0.3: the comprehensive-offer entities are renamed.** The scenario key now contains the offer id: `kompleksowa_G12` became `kompleksowa_enea_2026_wybor_G12` (likewise for G11, G12w, and for both the `razem`/total and `roznica`/difference entities). After the update the old Enea-offer entities disappear from the registry and new ones, with new IDs, are created in their place. **Update any automations, templates and cards that referenced the old entities**. Pstryk and own-price-list entities are unchanged.
 
 ### "Tariff comparison" panel
 
-The integration adds a **Porównanie taryf** panel (always in Polish, as Pstryk and Enea operate only in Poland) to the HA sidebar by itself (scale icon, visible to all users). It consists of a summary line and two sections on a shared bar scale:
+The integration adds a **Porównanie taryf** panel (always in Polish, as Pstryk and Enea operate only in Poland) to the HA sidebar by itself (scale icon, visible to all users). Layout, top to bottom:
 
-- **Summary line** at the top: the current contract's cost for the selected period and the cheapest option overall across both sections (or a note that the current one is the cheapest or as cheap as another).
-- **Section 1, "Pstryk power + Enea Operator distribution":** its own verdict (the cheapest distribution tariff, or "the current tariff is the cheapest"), a chart of G11 / G12 / G12w / G12sezON / G13active under the Pstryk contract and tiles: Pstryk Shield, consumption, cheap and expensive hours, data date.
-- **Section 2, "Comprehensive contract":** its own verdict (the cheapest comprehensive offer versus the current Pstryk contract) and one shared ranking of all catalogue offers (Enea, Tauron, PGE, Energa) plus your own price list, if you define one. Under the chart the panel shows, per offer, which tariffs it does not cover and its notes (conditions and price list validity).
-- **"Sprzedawca / oferta" (seller / offer) dropdown** in the section 2 header narrows the chart, verdict, missing-tariff list and notes to one offer; "Wszystkie oferty" (all offers) is the shared ranking. The choice is stored in the HA entity, so it is the same on every device. The summary line at the top always counts all offers.
-- **Collapsible "Ceny w tej sekcji" (prices in this section) tables** under both sections. Every number is shown gross (large) with the net value below it (small print). Section 1: each tariff's distribution rates per zone, the fixed fees, and Pstryk's average energy price over the period before and after the Shield, including Pstryk's trading fee. Section 2: the prices of the shown offer(s) per zone and the trading fee.
+- **Period bar:** Day / Month / Year / Range, ←/→ arrows and the date fields for a range.
+- **Warnings** (e.g. incomplete data) — a short list above the table.
+- **Answer line:** the cheapest offer with its tariff and how many zloty less than the current contract. When the saving requires changing the tariff at the grid operator, the panel shows the best option without a tariff change and, next to it, the result after the change. When all differences are below 1% of the current contract's cost, it says your contract is the cheapest.
+- **Offer × tariff table:** a row is an offer (Pstryk, catalogue offers, your own price list), a column is a distribution tariff. A cell shows the difference against the current contract in PLN: green — cheaper, red — more expensive (the stronger the colour, the bigger the difference), grey with "≈" — a difference below 1%. The current contract is labelled "teraz" (now), the cheapest cell has a thick outline, the cheapest one without a tariff change a dashed outline. Hover a cell for the full cost of the period. The "cena stała" (fixed price) column shows until when the offer guarantees its price, and the pills next to an offer name (e.g. "Tarcza −134 zł", "realnie taniej") have explanatory tooltips. On a phone the table scrolls horizontally while the offer names stay in place.
+- **Statistics line:** consumption, share of cheap hours and Pstryk Shield (when the rebate is above zero).
+- **Collapsed "Ceny i stawki" (prices and rates) and "Uwagi do ofert" (notes on offers) sections:** in the first every number is shown gross (large) with the net value below it (small) — distribution rates per zone, fixed fees, Pstryk's average energy price before and after the Shield, and the offers' energy prices and trading fees; in the second the conditions and price list validity.
 
-When another option costs the same as the current one (after rounding to the cent), the panel says it is "as cheap". It reads everything from the integration's entities, so there is nothing to configure. The panel appears once the integration is added and disappears with the last config entry. To hide it, edit the sidebar (press and hold the sidebar title, or choose "Edit sidebar") and turn the item off.
+It reads everything from the integration's entities, so there is nothing to configure. The panel appears once the integration is added and disappears with the last config entry. To hide it, edit the sidebar (press and hold the sidebar title, or choose "Edit sidebar") and turn the item off.
 
 ### Warning codes
 

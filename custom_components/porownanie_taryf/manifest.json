@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/sharezz1/ha-porownanie-taryf",
   "requirements": [],
-  "version": "0.6.1"
+  "version": "0.7.0"
 }
