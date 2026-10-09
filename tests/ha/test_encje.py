@@ -129,10 +129,25 @@ async def test_atrybuty_oferty_i_uwag(hass, wpis, pobierz):
     assert _stan(hass, wpis, "sensor", "kompleksowa_enea_eneopewnosc_2026_G13active_razem").attributes["taryfa"] == "G13active"
 
 
+async def test_atrybuty_cena_do_znaczniki_taryfy(hass, wpis, pobierz):
+    await _setup(hass, wpis)
+
+    pewnosc = _stan(hass, wpis, "sensor", "kompleksowa_enea_eneopewnosc_2026_G12_razem").attributes
+    assert (pewnosc["cena_do"], pewnosc["znaczniki"]) == ("36 mies.", [])
+    natura = _stan(hass, wpis, "sensor", "kompleksowa_tauron_natura_2026_G12_razem").attributes
+    assert natura["cena_do"] == "do 09.2029"
+    assert natura["znaczniki"] == [["realnie taniej", "W 2026 opłata handlowa realnie 0 zł — ok. 30 zł/rok mniej niż w tabeli"]]
+    assert _stan(hass, wpis, "sensor", "kompleksowa_enea_2026_wybor_G12_roznica").attributes["cena_do"] == ""
+    pstryk = _stan(hass, wpis, "sensor", "pstryk_G12_razem").attributes
+    assert (pstryk["cena_do"], pstryk["znaczniki"]) == ("", [])
+    assert pstryk["taryfy"] == ["G11", "G12", "G12w", "G12sezON", "G13active"]
+    assert _stan(hass, wpis, "sensor", "pstryk_G12w_roznica").attributes["taryfy"] == pstryk["taryfy"]
+
+
 async def test_uwagi_poza_rejestratorem(hass, wpis, pobierz):
     from custom_components.porownanie_taryf.sensor import ScenariuszSensor
 
-    statyczne = {"uwagi", "stawki_dystrybucji", "oplaty_dystrybucji_mc", "ceny_energii", "oplata_handlowa_mc", "vat", "akcyza_kwh", "srednia_cena_energii"}
+    statyczne = {"uwagi", "stawki_dystrybucji", "oplaty_dystrybucji_mc", "ceny_energii", "oplata_handlowa_mc", "vat", "akcyza_kwh", "srednia_cena_energii", "cena_do", "znaczniki", "taryfy"}
     assert statyczne <= ScenariuszSensor._unrecorded_attributes
     assert statyczne <= ScenariuszSensor._Entity__combined_unrecorded_attributes  # HA faktycznie to uwzględnia
 

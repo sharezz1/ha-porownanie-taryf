@@ -9,6 +9,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TaryfyConfigEntry, TaryfyCoordinator
+from .core.presety import TARYFY
 from .core.scenariusz import cennik_scenariusza, etykieta, grupa_scenariusza, id_oferty_scenariusza, klucze_scenariuszy, sprzedawca_scenariusza, taryfa_scenariusza
 from .entity import TaryfyEntity
 
@@ -66,6 +67,7 @@ class ScenariuszSensor(_Sensor):
     # długi statyczny tekst i stałe ceny nie powinny trafiać do rejestratora
     _unrecorded_attributes = frozenset({
         "uwagi", "stawki_dystrybucji", "oplaty_dystrybucji_mc", "ceny_energii", "oplata_handlowa_mc", "vat", "akcyza_kwh", "srednia_cena_energii",
+        "cena_do", "znaczniki", "taryfy",
     })
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = "PLN"
@@ -124,6 +126,9 @@ class ScenariuszSensor(_Sensor):
             "sprzedawca": sprzedawca_scenariusza(self._klucz, self.coordinator.konf),
             "oferta": cennik.oferta if cennik else "",
             "uwagi": list(cennik.uwagi) if cennik else [],
+            "cena_do": cennik.cena_do if cennik else "",
+            "znaczniki": [list(z) for z in cennik.znaczniki] if cennik else [],
+            "taryfy": list(TARYFY),  # kolejność kolumn tabeli w panelu; w v0.8 przyjdzie z operatora
             "taryfa": taryfa_scenariusza(self._klucz),
             "obecny": self._klucz == wynik.obecny,
             "sprzedaz_przed": round(s.sprzedaz_przed, 2),
