@@ -45,6 +45,8 @@ export function zbierzDane(hass) {
         handlowaMc: a.oplata_handlowa_mc ?? null, akcyza: a.akcyza_kwh ?? null, srednia: a.srednia_cena_energii ?? null,
       },
       uwagi: Array.isArray(a.uwagi) ? a.uwagi : [],
+      cenaDo: typeof a.cena_do === "string" ? a.cena_do : "", // "" = bez gwarancji stałości ceny
+      znaczniki: Array.isArray(a.znaczniki) ? a.znaczniki.filter(Array.isArray) : [], // [[etykieta, dymek], …]
       razem: liczba(s),
       sprzedazPo: a.sprzedaz_po ?? 0,
       dystrybucja: a.dystrybucja ?? 0,
@@ -90,6 +92,7 @@ export function zbierzDane(hass) {
     powod: a.powod ?? (pokrycie === 0 ? "brak_odczytow" : null),
     ranking,
     kompleksowa,
+    taryfy: Array.isArray(a.taryfy) ? a.taryfy.map(String) : null, // kolejność kolumn tabeli z integracji (null = starsza integracja)
     brakujace,
     uwagi,
     wybor,
@@ -128,6 +131,69 @@ export const naTaryfy = (wiersze, sprzedawcaOk = true) =>
 const nazwa = (s, wiersze, sprzedawcaOk) => (naTaryfy(wiersze, sprzedawcaOk) ? s.taryfa : s.etykieta);
 const remisy = (wiersze) => wiersze.filter((s) => !s.obecny && zaokr(s.roznica) === 0);
 const mozna = (dane) => dane?.obecny && !dane.brakWyniku;
+
+// --- tabela oferta × taryfa (v0.7) ---
+
+export const PROG = 0.01; // różnica poniżej 1% kosztu obecnej umowy = „≈ tyle samo”
+const nazwaWiersza = (s) => (s.grupa === "pstryk" ? "Pstryk" : s.oferta ? `${s.sprzedawca} ${s.oferta}` : "Własny cennik");
+
+// kolumny = taryfy z integracji (atrybut `taryfy`), potem ewentualne dodatkowe w kolejności pierwszego wystąpienia
+export const kolumnyTaryf = (dane) => [...new Set([...(dane.taryfy ?? []), ...[...dane.ranking, ...dane.kompleksowa].map((s) => s.taryfa)])];
+
+// wymaga dane.obecny (wywołanie tylko gdy `mozna(dane)`); komórka = scenariusz: oferta (wiersz) × taryfa (kolumna)
+export function wierszeTabeli(dane) {
+  const scenariusze = [...dane.ranking, ...dane.kompleksowa];
+  const o = dane.obecny;
+  const kolumny = kolumnyTaryf(dane);
+  const prog = PROG * o.razem;
+  const wiersze = new Map();
+  for (const s of scenariusze) {
+    const klucz = s.grupa === "pstryk" ? "pstryk" : s.idOferty || JSON.stringify([s.sprzedawca, s.oferta]);
+    if (!wiersze.has(klucz)) wiersze.set(klucz, { klucz, etykieta: nazwaWiersza(s), znaczniki: [], cenaDo: "", obecny: false, komorki: Object.fromEntries(kolumny.map((t) => [t, null])) });
+    const w = wiersze.get(klucz);
+    if (!w.cenaDo) w.cenaDo = s.cenaDo;
+    if (!w.znaczniki.length) w.znaczniki = s.znaczniki;
+    w.obecny ||= s.obecny;
+    w.komorki[s.taryfa] = { wiersz: w.etykieta, taryfa: s.taryfa, roznica: s.roznica, razem: s.razem, obecny: s.obecny };
+  }
+  const komorki = [...wiersze.values()].flatMap((w) => Object.values(w.komorki).filter(Boolean));
+  const inne = komorki.filter((c) => !c.obecny);
+  const maks = Math.max(0, ...inne.map((c) => Math.abs(c.roznica)));
+  for (const c of komorki) {
+    const rowne = c.obecny || c.roznica === 0 || Math.abs(c.roznica) < prog;
+    c.klasa = rowne ? "rowne" : c.roznica < 0 ? "taniej" : "drozej";
+    c.sila = rowne ? 0 : Math.abs(c.roznica) / maks; // 0…1, nasycenie koloru
+  }
+  const tarcza = Math.round(-o.tarcza);
+  const pstryk = wiersze.get("pstryk");
+  if (pstryk && tarcza > 0) pstryk.znaczniki = [[`Tarcza −${tarcza} zł`, `Tarcza Pstryk (${kwota(o.tarcza)} w tym okresie) jest już odjęta od kosztu.`]];
+  for (const w of wiersze.values()) w.min = Math.min(...Object.values(w.komorki).filter(Boolean).map((c) => c.roznica));
+  const posortowane = [...wiersze.values()].sort((a, b) => a.min - b.min || b.obecny - a.obecny || a.etykieta.localeCompare(b.etykieta, "pl"));
+  const najtansza = (lista) => lista.reduce((n, c) => (!n || c.roznica < n.roznica ? c : n), null);
+  const naj = najtansza(posortowane.flatMap((w) => Object.values(w.komorki).filter((c) => c && !c.obecny)));
+  const najBez = najtansza(posortowane.map((w) => w.komorki[o.taryfa]).filter((c) => c && !c.obecny));
+  const istotna = (c) => c && c.roznica < 0 && c.roznica <= -prog; // oszczędność co najmniej 1% (prog 0 przy zerowych kosztach: tylko ujemna)
+  if (istotna(naj)) naj.najtansza = true;
+  if (istotna(najBez) && najBez !== naj) najBez.najtanszaBez = true;
+  return { kolumny, obecnaTaryfa: o.taryfa, wiersze: posortowane, naj, najBez, prog };
+}
+
+// linijka odpowiedzi (spec §4); null = brak obecnej umowy lub wyniku (panel pokazuje wtedy komunikat)
+export function odpowiedz(dane) {
+  if (!mozna(dane)) return null;
+  const { naj, najBez } = wierszeTabeli(dane);
+  const o = dane.obecny;
+  if (!naj?.najtansza) return { typ: "obecna", pod: `${kwota(o.razem)} (${o.etykieta})` };
+  const wymaga = naj.taryfa !== o.taryfa;
+  const bez = wymaga && !!najBez?.najtanszaBez;
+  const cel = bez ? najBez : naj;
+  return {
+    typ: "najtaniej", oferta: cel.wiersz, taryfa: cel.taryfa, mniej: zaokr(-cel.roznica),
+    bezZmiany: bez, zmianaTaryfy: wymaga && !bez,
+    obok: bez ? `ze zmianą na ${naj.taryfa}: ${kwota(naj.roznica, true)}` : "",
+    pod: `${kwota(cel.razem)} zamiast ${kwota(o.razem)} (${o.etykieta})`,
+  };
+}
 
 // linijka na górze: obecna umowa + najtańsza opcja z obu sekcji (neutralnie, bez „zapłaciłeś”)
 export function podsumowanie(dane) {
