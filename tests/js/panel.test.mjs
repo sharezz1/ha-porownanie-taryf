@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  htmlOdpowiedzi, htmlTabeli, kluczRenderu, komorkaCeny, kwota, nazwaOkresu, nazwaStrefy, odpowiedz, przesun, tekst, tekstOstrzezenia, udzialy, wierszeTabeli, zbierzDane,
+  htmlCenSekcji1, htmlCenSekcji2, htmlOdpowiedzi, htmlTabeli, htmlWynikow, kluczRenderu, komorkaCeny, kwota, nazwaOkresu, nazwaStrefy, odpowiedz, przesun, tekst, tekstOstrzezenia, udzialy, wierszeTabeli, zbierzDane,
 } from "../../custom_components/porownanie_taryf/frontend/panel.js";
 
 const NBSP = "\u00a0";
@@ -385,4 +385,119 @@ test("HTML odpowiedzi: nazwa oferty z atrybutów jest escapowana", () => {
   const html = htmlOdpowiedzi(odpowiedz(zbierzDane(hassTabela([pstryk(G12), komp("x", "<b>S</b>", "O", "G12", 700)]))));
   assert.doesNotMatch(html, /<b>S/);
   assert.ok(html.includes("&#60;b&#62;S&#60;/b&#62; O + G12"));
+});
+
+// --- htmlWynikow: układ panelu (spec §2) ---
+
+const UWAGA_WYBOR = "Uwaga testowa A: potwierdź ofertę.";
+const hassUklad = (wspolne = { ...WSP, taryfy: TARYFY5 }, kwh = [570, 430]) => hassTabela([
+  pstryk(G12), pstryk(G12W), pstryk(G13), PG11,
+  PEW("G12", 760), komp("enea_2026_wybor", "Enea", "prawo wyboru", "G12", 795, { uwagi: [UWAGA_WYBOR, "Druga uwaga & <b>pogrubiona</b>."] }),
+  WLASNY("G12", 900),
+], wspolne, { kwh });
+const html = (h, ui) => htmlWynikow(zbierzDane(h), ui);
+
+test("układ: ostrzeżenia, odpowiedź, tabela, statystyki, dwa zwinięte <details> — w tej kolejności, bez starych sekcji", () => {
+  const h = hassUklad({ ...WSP, taryfy: TARYFY5, ostrzezenia: ["pokrycie_ponizej_95"] });
+  for (const e of Object.values(h.states)) if (e.attributes.scenariusz) e.attributes.ostrzezenia = ["pokrycie_ponizej_95"];
+  const out = html(h);
+  const pozycje = ['<ul class="ostrzezenia">', '<div class="odpowiedz">', '<div class="kolory">', '<p class="statystyki">', 'data-id="ceny"', 'data-id="uwagi"'].map((m) => out.indexOf(m));
+  assert.ok(pozycje.every((p) => p >= 0) && pozycje.every((p, i) => !i || p > pozycje[i - 1]), String(pozycje));
+  assert.equal((out.match(/<details/g) ?? []).length, 2);
+  assert.match(out, /<li>Dane są niepełne/);
+  assert.doesNotMatch(out, /<h3>|<select|<optgroup|slupek|Sprzedawca|nie obejmuje|class="werdykt"/);
+});
+test("statystyki: zużycie, tanie godziny, Tarcza tylko gdy > 0", () => {
+  assert.match(html(hassUklad()), /<p class="statystyki">Zużycie <b>1 000,00 kWh<\/b> · tanie godziny <b>57%<\/b> · Tarcza Pstryk <b>−100,00 zł<\/b><\/p>/);
+  const bez = hassUklad(); for (const e of Object.values(bez.states)) if (e.attributes.scenariusz) e.attributes.tarcza = 0;
+  assert.match(html(bez), /<p class="statystyki">Zużycie <b>1 000,00 kWh<\/b> · tanie godziny <b>57%<\/b><\/p>/);
+  assert.match(html(hassUklad(undefined, [0, 0])), /<p class="statystyki">Zużycie <b>0,00 kWh<\/b> · Tarcza/);
+});
+test("zwinięte <details>: otwarte tylko te zapamiętane w `ui.otwarte`", () => {
+  const h = hassUklad();
+  assert.doesNotMatch(html(h), / open>/);
+  const otw = html(h, { otwarte: new Set(["uwagi"]) });
+  assert.ok(otw.includes('data-id="uwagi" open>') && otw.includes('data-id="ceny">'));
+  assert.match(otw, /<summary>Ceny i stawki<\/summary>/);
+  assert.match(otw, /<summary>Uwagi do ofert<\/summary>/);
+});
+test("„Uwagi do ofert”: akapit na ofertę z nazwą jak w tabeli, zdania escapowane, rada o 12 miesiącach na końcu; własny cennik bez uwag", () => {
+  const out = html(hassUklad());
+  assert.ok(out.includes(`<p class="adnotacja"><strong>Enea prawo wyboru:</strong> ${UWAGA_WYBOR} Druga uwaga &#38; &#60;b&#62;pogrubiona&#60;/b&#62;.</p>`));
+  assert.doesNotMatch(out, /<b>pogrubiona/);
+  assert.ok(out.indexOf("Enea prawo wyboru:") < out.indexOf("O zmianie taryfy decyduj"));
+  assert.equal((out.match(/<strong>/g) ?? []).length, 1);   // EneoPewność i Własny cennik nie mają uwag
+  assert.ok(html(hassWrzesien()).includes("O zmianie taryfy decyduj"));   // sama rada, gdy nikt nie ma uwag
+});
+test("komunikaty: pusty rejestr, brak integracji, brak wyniku", () => {
+  assert.equal(htmlWynikow(undefined), "");
+  assert.match(htmlWynikow(null), /Dodaj integrację Porównanie taryf/);
+  assert.match(html(hassBezWyniku()), /Koniec zakresu jest wcześniejszy/);
+  assert.doesNotMatch(html(hassBezWyniku()), /<table|<details/);
+});
+test("sam Pstryk (starsza integracja bez katalogu i bez nowych atrybutów): tabela z jednym wierszem, bez błędu i bez „undefined”/„NaN”", () => {
+  const out = html(hassWrzesien());
+  const tabelaKolorow = out.split('<div class="kolory">')[1].split("</table>")[0];
+  assert.equal((tabelaKolorow.match(/<tr><th scope="row">/g) ?? []).length, 1);
+  assert.ok(out.includes("Twoja umowa jest najtańsza"));
+  assert.doesNotMatch(out, /undefined|NaN|null/);
+});
+
+// --- „Ceny i stawki” (htmlCenSekcji1 + htmlCenSekcji2, bez filtra sprzedawcy) ---
+
+// syntetyczne ceny netto: stawki dystrybucji G12 dzien 0,3214 / noc 0,1348, vat 0,23
+const CENY_DYSTR = { vat: 0.23, stawki_dystrybucji: { dzien: 0.3214, noc: 0.1348 }, oplaty_dystrybucji_mc: { sieciowa: 10, abonament: 3.84, mocowa: 24.05 } };
+const ceny = (id, extra = {}) => ({ id_oferty: id, ...CENY_DYSTR, ceny_energii: { dzien: 0.6, noc: 0.4 }, oplata_handlowa_mc: 5, akcyza_kwh: 0, ...extra });
+const hassCeny = () => hassTabela([
+  ["pstryk_G12", "Pstryk + G12", 800, 500, 300, -100, true, { ...meta("pstryk", "Pstryk", "G12"), ...CENY_DYSTR, id_oferty: "", srednia_cena_energii: { przed_tarcza: 0.6, po_tarczy: 0.5 }, akcyza_kwh: 0.005 }],
+  ["pstryk_G12w", "Pstryk + G12w", 820, 500, 320, -100, false, { ...meta("pstryk", "Pstryk", "G12w"), ...CENY_DYSTR, stawki_dystrybucji: { szczyt: 0.4, pozaszczyt: 0.2 }, id_oferty: "" }],
+  ["pstryk_G13active", "Pstryk + G13active", 810, 500, 310, -100, false, { ...meta("pstryk", "Pstryk", "G13active"), ...CENY_DYSTR, stawki_dystrybucji: { szczyt: 0.5, pobor: 0.1 }, id_oferty: "" }],
+  komp("tauron_extra_2026", "Tauron", "Twój Extra Elektryk 24H", "G12", 760, ceny("tauron_extra_2026")),
+  komp("enea_2026_wybor", "Enea", "prawo wyboru", "G12", 790, ceny("enea_2026_wybor", { ceny_energii: { dzien: 0.7, noc: 0.5 }, oplata_handlowa_mc: 10 })),
+  komp("cennik", "Moja", "", "G12", 900, ceny("cennik", { akcyza_kwh: 0.005 })),
+]);
+
+test("ceny: stawki każdej taryfy per strefa (brutto + netto), opłaty stałe, średnia Pstryk przed/po Tarczy", () => {
+  const out = htmlCenSekcji1(zbierzDane(hassCeny()));
+  assert.match(out, /<th scope="row" rowspan="2">G12<\/th><td>dzień<\/td><td class="cena"><span class="brutto">0,3953 zł\/kWh<\/span><small>netto 0,3214<\/small>/);
+  assert.match(out, /<td>noc<\/td><td class="cena"><span class="brutto">0,1658 zł\/kWh<\/span><small>netto 0,1348<\/small>/);   // 0,1348 × 1,23
+  assert.match(out, /<td>szczyt<\/td>[^]*?0,4920 zł\/kWh<\/span><small>netto 0,4000/);
+  assert.ok(out.indexOf(">G12<") < out.indexOf(">G12w<") && out.indexOf(">G12w<") < out.indexOf(">G13active<"));   // kolejność kolumn z atrybutu `taryfy`
+  for (const t of ["Opłata sieciowa stała", "Abonament", "Opłata mocowa"]) assert.ok(out.includes(t));
+  assert.ok(out.includes("4,72 zł/mies.") && out.includes("<small>netto 3,84</small>") && out.includes("29,58 zł/mies."));
+  assert.match(out, /przed Tarczą<\/th><td class="cena"><span class="brutto">0,7380 zł\/kWh<\/span><small>netto 0,6000/);
+  assert.match(out, /po Tarczy<\/th><td class="cena"><span class="brutto">0,6150 zł\/kWh<\/span><small>netto 0,5000/);
+  assert.ok(out.includes("Akcyza (bez VAT)") && out.includes("0,0050 zł/kWh"));
+  assert.doesNotMatch(out, /Dzien|dzien|pozaszczyt_/);
+});
+test("ceny: okres bez odczytów (średnia null) i brak atrybutów → „brak danych”", () => {
+  const h = hassCeny();
+  const eid = Object.keys(h.entities).find((e) => h.states[e].attributes.scenariusz === "pstryk_G12" && h.entities[e].translation_key === "razem");
+  h.states[eid].attributes.srednia_cena_energii = { przed_tarcza: null, po_tarczy: null };
+  const out = htmlCenSekcji1(zbierzDane(h));
+  assert.equal((out.match(/przed Tarczą<\/th><td class="cena brak">brak danych/g) ?? []).length, 1);
+  assert.match(out, /po Tarczy<\/th><td class="cena brak">brak danych/);
+  const goly = htmlCenSekcji1(zbierzDane(hassWrzesien()));   // sensory bez atrybutów cen
+  assert.ok(goly.includes("brak danych") && !goly.includes("NaN") && !goly.includes("undefined"));
+});
+test("ceny: wszystkie oferty naraz (bez filtra) posortowane po nazwie jak w tabeli, własny cennik na końcu; opłata handlowa i akcyza", () => {
+  const out = htmlCenSekcji2(zbierzDane(hassCeny()));
+  assert.match(out, /Enea prawo wyboru · G12<\/th><td>dzień<\/td><td class="cena"><span class="brutto">0,8610 zł\/kWh<\/span><small>netto 0,7000/);
+  assert.match(out, /<td>noc<\/td><td class="cena"><span class="brutto">0,6150 zł\/kWh<\/span><small>netto 0,5000/);
+  const kolejnosc = ["Enea prawo wyboru · G12", "Tauron Twój Extra Elektryk 24H · G12", "Własny cennik · G12"].map((e) => out.indexOf(e));
+  assert.ok(kolejnosc.every((p, i) => p >= 0 && (!i || p > kolejnosc[i - 1])), String(kolejnosc));
+  assert.ok(out.includes("Opłata handlowa") && out.includes("12,30 zł/mies.") && out.includes("<small>netto 10,00</small>") && out.includes("6,15 zł/mies."));
+  assert.ok(out.includes("Własny cennik · Akcyza</th>"));
+  assert.doesNotMatch(out, /Enea — |Tauron — /);
+});
+test("ceny: brak atrybutów oferty → „brak danych”; nazwy escapowane", () => {
+  const out = htmlCenSekcji2(zbierzDane(hassTabela([pstryk(G12), komp("x", "<b>S</b>", "<i>O</i>", "G12", 700)])));
+  assert.ok(out.includes("brak danych") && !out.includes("<b>S") && !out.includes("<i>O"));
+  assert.ok(out.includes("&#60;b&#62;S&#60;/b&#62; &#60;i&#62;O&#60;/i&#62; · G12"));
+});
+test("a11y: pusty nagłówek kolumny tabeli średniej Pstryk ma ukrytą etykietę, podpis wspomina opłatę handlową Pstryka", () => {
+  const out = htmlCenSekcji1(zbierzDane(hassCeny()));
+  assert.doesNotMatch(out, /<th scope="col"><\/th>/);
+  assert.match(out, /<th scope="col"><span class="ukryte">Pozycja<\/span><\/th>/);
+  assert.match(out, /<caption>Pstryk: średnia cena energii w okresie \(z opłatą handlową Pstryka\)<\/caption>/);
 });
