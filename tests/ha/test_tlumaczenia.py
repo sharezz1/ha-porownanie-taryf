@@ -9,7 +9,7 @@ from homeassistant.helpers.selector import SelectSelector
 
 from custom_components.porownanie_taryf import config_flow
 from custom_components.porownanie_taryf.coordinator import ISSUE_ENDPOINT
-from custom_components.porownanie_taryf.core.presety import SPRZEDAWCY, TARCZA_DOMYSLNA, stawki_enea_2026, stawki_na_plasko
+from custom_components.porownanie_taryf.core.presety import TARCZA_DOMYSLNA, stawki_enea_2026, stawki_na_plasko
 from custom_components.porownanie_taryf.core.scenariusz import RODZAJE_OKRESU
 
 KOD = Path(config_flow.__file__).parent
@@ -21,8 +21,6 @@ WYMAGANE = [
     *(f"entity.sensor.{k}.name" for k in ("razem", "roznica", "kwh_tanie", "kwh_drogie")),
     "entity.select.okres.name",
     *(f"entity.select.okres.state.{s}" for s in RODZAJE_OKRESU),
-    "entity.select.sprzedawca.name",
-    *(f"entity.select.sprzedawca.state.{s}" for s in ("wszystkie", "cennik", *SPRZEDAWCY)),
     "entity.date.data.name",
     "entity.date.koniec.name",
     "config.step.user.title",
@@ -68,6 +66,11 @@ def test_ta_sama_struktura():
 def test_komplet_kluczy(jezyk):
     for sciezka in WYMAGANE:
         assert _pobierz(TLUMACZENIA[jezyk], sciezka).strip(), sciezka
+
+
+@pytest.mark.parametrize("jezyk", TLUMACZENIA)
+def test_brak_selecta_sprzedawca(jezyk):
+    assert set(TLUMACZENIA[jezyk]["entity"]["select"]) == {"okres"}
 
 
 @pytest.mark.parametrize("jezyk", TLUMACZENIA)

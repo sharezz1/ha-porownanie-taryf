@@ -165,19 +165,6 @@
           "rok": "Rok",
           "zakres": "Zakres własny"
         }
-      },
-      "sprzedawca": {
-        "name": "Sprzedawca",
-        "state": {
-          "wszystkie": "Wszystkie oferty",
-          "enea_2026_wybor": "Enea — prawo wyboru",
-          "enea_eneopewnosc_2026": "Enea — EneoPewność",
-          "tauron_extra_2026": "Tauron — Twój Extra Elektryk 24H",
-          "tauron_natura_2026": "Tauron — Energia dla natury i pszczół",
-          "pge_taryfowy_gtpa": "PGE — cennik taryfowy",
-          "energa_podstawowa_2026": "Energa — Podstawowa 2 lata",
-          "cennik": "Własny cennik"
-        }
       }
     },
     "date": {

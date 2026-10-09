@@ -298,7 +298,6 @@ async def test_encje_v03_oferty_kompleksowej_znikaja_po_aktualizacji(hass, hass_
 
 
 OPCJE_CENNIKA = {"cennik": {"nazwa": "X", "oplata_mc": 10, "akcyza": 0.005, "ceny": {"G12": {"dzien": 0.6, "noc": 0.4}}}}
-OPCJE_SPRZEDAWCY = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026", "tauron_extra_2026", "tauron_natura_2026", "pge_taryfowy_gtpa", "energa_podstawowa_2026"]
 
 
 async def test_atrybuty_cen_pstryk(hass, wpis, pobierz):
@@ -359,61 +358,13 @@ async def test_srednia_pstryk_bez_odczytow_to_null(hass, hass_storage, pobierz):
     assert a["akcyza_kwh"] is None
 
 
-async def test_select_sprzedawca_opcje_i_domyslna(hass, wpis, pobierz):
+async def test_osierocony_select_sprzedawca_znika_po_aktualizacji(hass, wpis, pobierz):
+    """v0.7 usunęła select „Sprzedawca”: wpis rejestru po nim sprząta async_setup_entry, okres zostaje."""
+    rejestr = er.async_get(hass)
+    rejestr.async_get_or_create("select", DOMAIN, f"{wpis.entry_id}_sprzedawca", suggested_object_id="sprzedawca", config_entry=wpis)
     await _setup(hass, wpis)
 
-    s = _stan(hass, wpis, "select", "sprzedawca")
-    assert s.state == "wszystkie"
-    assert s.attributes["options"] == OPCJE_SPRZEDAWCY
-
-    await hass.services.async_call(
-        "select", "select_option", {"entity_id": s.entity_id, "option": "enea_eneopewnosc_2026"}, blocking=True
-    )
-    assert _stan(hass, wpis, "select", "sprzedawca").state == "enea_eneopewnosc_2026"
-    # wybór nie wpływa na liczby
-    assert float(_stan(hass, wpis, "sensor", "pstryk_G12_razem").state) == pytest.approx(710.79, abs=0.005)
-
-
-async def test_select_sprzedawca_z_wlasnym_cennikiem(hass, wpis, pobierz):
-    hass.config_entries.async_update_entry(wpis, options=OPCJE_CENNIKA)
-    await _setup(hass, wpis)
-
-    assert _stan(hass, wpis, "select", "sprzedawca").attributes["options"] == [*OPCJE_SPRZEDAWCY, "cennik"]
-
-
-@pytest.mark.parametrize(
-    ("zapisany", "oczekiwany"),
-    [("enea_eneopewnosc_2026", "enea_eneopewnosc_2026"), ("cennik", "wszystkie"), ("nie_ma_takiego", "wszystkie")],
-)
-async def test_restore_sprzedawcy(hass, wpis, pobierz, zapisany, oczekiwany):
-    select = er.async_get(hass).async_get_or_create(
-        "select", DOMAIN, f"{wpis.entry_id}_sprzedawca", suggested_object_id="sprzedawca", config_entry=wpis
-    )
-    mock_restore_cache(hass, [State(select.entity_id, zapisany)])
-
-    await _setup(hass, wpis)
-
-    assert hass.states.get(select.entity_id).state == oczekiwany
-
-
-async def test_restore_sprzedawcy_cennik_gdy_jest(hass, wpis, pobierz):
-    select = er.async_get(hass).async_get_or_create(
-        "select", DOMAIN, f"{wpis.entry_id}_sprzedawca", suggested_object_id="sprzedawca", config_entry=wpis
-    )
-    mock_restore_cache(hass, [State(select.entity_id, "cennik")])
-    hass.config_entries.async_update_entry(wpis, options=OPCJE_CENNIKA)
-
-    await _setup(hass, wpis)
-
-    assert hass.states.get(select.entity_id).state == "cennik"
-
-
-async def test_sprzedawca_dostepny_mimo_bledu_odswiezania(hass, wpis, pobierz):
-    await _setup(hass, wpis)
-    pobierz.side_effect = PstrykAuthError("Pstryk HTTP 401")
-
-    await wpis.runtime_data.async_refresh()
-    await hass.async_block_till_done()
-
-    assert _stan(hass, wpis, "sensor", "pstryk_G12_razem").state == "unavailable"
-    assert _stan(hass, wpis, "select", "sprzedawca").state == "wszystkie"
+    assert _eid(hass, wpis, "select", "sprzedawca") is None
+    assert not [e for e in rejestr.entities.values() if e.unique_id.endswith("_sprzedawca")]
+    assert _eid(hass, wpis, "select", "okres")
+    assert _eid(hass, wpis, "date", "data")
