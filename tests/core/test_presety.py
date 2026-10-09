@@ -54,6 +54,9 @@ def test_katalog_sprzedawcow():
     pge = SPRZEDAWCY["pge_taryfowy_gtpa"]
     assert pge.akcyza == 0.0 and pge.ceny["G11"]["calodobowa"] == 0.6220
     energa = SPRZEDAWCY["energa_podstawowa_2026"]
+    assert [c.cena_do for c in SPRZEDAWCY.values()] == ["", "36 mies.", "do 09.2027", "do 09.2029", "", "24 mies."]
+    assert [len(c.znaczniki) for c in SPRZEDAWCY.values()] == [0, 0, 0, 1, 0, 0]
+    assert natura.znaczniki == (("realnie taniej", "W 2026 opłata handlowa realnie 0 zł — ok. 30 zł/rok mniej niż w tabeli"),)
     assert energa.ceny["G12"] == {"dzien": 0.6080, "noc": 0.4037} and energa.ceny["G12w"] == {"szczyt": 0.6080, "pozaszczyt": 0.4037}  # jedna cena dla G12 i G12w
 
 

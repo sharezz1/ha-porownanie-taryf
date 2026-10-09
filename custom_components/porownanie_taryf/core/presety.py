@@ -62,6 +62,8 @@ class Cennik:
     ceny: dict[str, dict[str, float]]  # taryfa -> strefa -> zł/kWh netto
     oferta: str = ""  # nazwa oferty w katalogu; własny cennik jej nie ma
     uwagi: tuple[str, ...] = ()
+    cena_do: str = ""  # do kiedy cena stała (np. "36 mies."); "" = bez gwarancji
+    znaczniki: tuple[tuple[str, str], ...] = ()  # (etykieta, dymek) pigułek w panelu
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +93,7 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "G12w": {"szczyt": 0.6464, "pozaszczyt": 0.3459},
         "G12sezON": {"pozostale": 0.5841, "zalecana": 0.3465},
         "G13active": {"ograniczanie": 0.6435, "pozostale": 0.4950, "pobor": 0.2772},
-    }, oferta="EneoPewność", uwagi=(
+    }, oferta="EneoPewność", cena_do="36 mies.", uwagi=(
         "Cena energii i opłata handlowa stałe przez 36 miesięcy; opłata 15,94 zł/mies. netto przy e-fakturze "
         "(20,01 zł netto przy fakturze papierowej), obejmuje usługę „Elektryk”.",
         "Przy zmianie sprzedawcy grupa taryfowa musi być taka jak dotychczasowa — na inną grupę (np. G12sezON) najpierw zmiana grupy u operatora.",
@@ -101,7 +103,7 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "G11": {"calodobowa": 0.5020},
         "G12": {"dzien": 0.5480, "noc": 0.4180},
         "G12w": {"szczyt": 0.6270, "pozaszczyt": 0.4180},
-    }, oferta="Twój Extra Elektryk 24H", uwagi=(
+    }, oferta="Twój Extra Elektryk 24H", cena_do="do 09.2027", uwagi=(
         "Cennik „Prąd z Twoim Extra Elektrykiem 24H”: umowę trzeba zawrzeć do 31.10.2026; ceny i stawki stałe do 30.09.2027.",
         "Opłata handlowa obejmuje gwarancję stałej ceny i usługę „Elektryk 24H”; brak opłaty za wcześniejsze rozwiązanie.",
         "Ceny netto z cennika, z akcyzą; dostępna poza obszarem TAURON Dystrybucja (Enea, Energa, PGE, Stoen).",
@@ -110,7 +112,9 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "G11": {"calodobowa": 0.4999},
         "G12": {"dzien": 0.5457, "noc": 0.4163},
         "G12w": {"szczyt": 0.6244, "pozaszczyt": 0.4163},
-    }, oferta="Energia dla natury i pszczół", uwagi=(
+    }, oferta="Energia dla natury i pszczół", cena_do="do 09.2029", znaczniki=(
+        ("realnie taniej", "W 2026 opłata handlowa realnie 0 zł — ok. 30 zł/rok mniej niż w tabeli"),
+    ), uwagi=(
         "Cennik „Energia dla natury i pszczół”: umowę trzeba zawrzeć do 31.10.2026; ceny i stawki stałe do 30.09.2029.",
         "Opłata handlowa: 0 zł/mies. do 31.12.2026, od 01.01.2027 — 25,61 zł/mies. netto; w obliczeniach przyjęto 25,61 (koszt docelowy — w 2026 r. realnie 0 zł).",
         "Ceny netto z cennika, z akcyzą; certyfikat pochodzenia energii z OZE; dostępna poza obszarem TAURON Dystrybucja.",
@@ -128,7 +132,7 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "G11": {"calodobowa": 0.5000},
         "G12": {"dzien": 0.6080, "noc": 0.4037},
         "G12w": {"szczyt": 0.6080, "pozaszczyt": 0.4037},
-    }, oferta="Podstawowa 2 lata", uwagi=(
+    }, oferta="Podstawowa 2 lata", cena_do="24 mies.", uwagi=(
         "Oferta „Podstawowa 2 lata”: umowę można zawrzeć do 31.12.2026; stałe warunki przez 24 miesiące.",
         "Ceny netto wyliczone z brutto (÷ 1,23): 0,6150 / 0,7478 / 0,4966 zł/kWh brutto; jedna cena dla G12 i G12w.",
         "Opłata handlowa 20,90 zł/mies. z e-fakturą (25,90 zł z papierową); po okresie oferty — cennik standardowy.",
