@@ -283,7 +283,7 @@ async def test_encje_v03_oferty_kompleksowej_znikaja_po_aktualizacji(hass, hass_
 
 
 OPCJE_CENNIKA = {"cennik": {"nazwa": "X", "oplata_mc": 10, "akcyza": 0.005, "ceny": {"G12": {"dzien": 0.6, "noc": 0.4}}}}
-OPCJE_SPRZEDAWCY = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026"]
+OPCJE_SPRZEDAWCY = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026", "tauron_extra_2026", "tauron_natura_2026", "pge_taryfowy_gtpa", "energa_podstawowa_2026"]
 
 
 async def test_atrybuty_cen_pstryk(hass, wpis, pobierz):

@@ -119,7 +119,7 @@ export function udzialy(tanie, drogie) {
 const kwh = (x) => (x === null ? "—" : `${format(x)} kWh`);
 
 // dopełniacz tylko dla nazw z wbudowanego katalogu; inna nazwa (np. własny cennik) → tytuł ogólny
-const DOPELNIACZ = { Enea: "Enei" };
+const DOPELNIACZ = { Enea: "Enei", Tauron: "Tauronu", PGE: "PGE", Energa: "Energi" };
 
 // etykieta wiersza = sama taryfa, gdy wszystkie wiersze mają jednego sprzedawcę (dla sekcji 2: katalogowego) i taryfy się nie powtarzają
 export const naTaryfy = (wiersze, sprzedawcaOk = true) =>
@@ -146,7 +146,9 @@ export function podsumowanie(dane) {
 
 const WSZYSTKIE = "wszystkie";
 const ETYKIETY_OPCJI = {
-  [WSZYSTKIE]: "Wszystkie oferty", enea_2026_wybor: "Enea — prawo wyboru", enea_eneopewnosc_2026: "Enea — EneoPewność", cennik: "Własny cennik",
+  [WSZYSTKIE]: "Wszystkie oferty", enea_2026_wybor: "Enea — prawo wyboru", enea_eneopewnosc_2026: "Enea — EneoPewność",
+  tauron_extra_2026: "Tauron — Twój Extra Elektryk 24H", tauron_natura_2026: "Tauron — Energia dla natury i pszczół",
+  pge_taryfowy_gtpa: "PGE — cennik taryfowy", energa_podstawowa_2026: "Energa — Podstawowa 2 lata", cennik: "Własny cennik",
 };
 // etykieta opcji listy: wbudowana; „cennik” z nazwą własnego sprzedawcy; nieznana z atrybutów pasujących sensorów („sprzedawca — oferta”); inaczej sam id (esc przy renderze)
 export function etykietaOferty(id, kompleksowa = []) {
@@ -154,6 +156,40 @@ export function etykietaOferty(id, kompleksowa = []) {
   if (id === "cennik" && s?.sprzedawca) return `${ETYKIETY_OPCJI.cennik}: ${s.sprzedawca}`;
   if (Object.hasOwn(ETYKIETY_OPCJI, id)) return ETYKIETY_OPCJI[id];
   return (s && [s.sprzedawca, s.oferta].filter(Boolean).join(" — ")) || String(id);
+}
+
+// kolejność grup na liście „Sprzedawca” (katalog v0.6.0); sprzedawcy spoza listy na końcu, alfabetycznie
+const KOLEJNOSC_SPRZEDAWCY = ["Enea", "Tauron", "PGE", "Energa"];
+// grupowanie opcji listy: „wszystkie” u góry, grupy po sprzedawcy (kolejność katalogu), reszta („cennik”, opcje bez danych) na końcu
+export function grupyOpcji(opcje, kompleksowa = []) {
+  const sprzedawca = (id) => kompleksowa.find((x) => x.idOferty === id)?.sprzedawca ?? null;
+  const gory = [];
+  const dol = [];
+  const grupy = new Map();
+  for (const o of opcje) {
+    const s = o === WSZYSTKIE || o === "cennik" ? null : sprzedawca(o); // „wszystkie” i „cennik” bez grupy
+    if (o === WSZYSTKIE) gory.push(o);
+    else if (s) {
+      if (!grupy.has(s)) grupy.set(s, []);
+      grupy.get(s).push(o);
+    } else dol.push(o);
+  }
+  const nazwy = [...grupy.keys()].sort((a, b) => {
+    const i = KOLEJNOSC_SPRZEDAWCY.indexOf(a);
+    const j = KOLEJNOSC_SPRZEDAWCY.indexOf(b);
+    return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || a.localeCompare(b);
+  });
+  return { gory, grupy: nazwy.map((nazwaSprzedawcy) => ({ sprzedawca: nazwaSprzedawcy, opcje: grupy.get(nazwaSprzedawcy) })), dol };
+}
+// HTML opcji listy „Sprzedawca”; sprzedawcy w <optgroup> (label = nazwa), reszta bez grupy
+export function htmlOpcji(opcje, kompleksowa = [], wybrany = null) {
+  const opcja = (o) => `<option value="${esc(o)}"${o === wybrany ? " selected" : ""}>${esc(etykietaOferty(o, kompleksowa))}</option>`;
+  const g = grupyOpcji(opcje, kompleksowa);
+  return [
+    ...g.gory.map(opcja),
+    ...g.grupy.map(({ sprzedawca, opcje: os }) => `<optgroup label="${esc(sprzedawca)}">${os.map(opcja).join("")}</optgroup>`),
+    ...g.dol.map(opcja),
+  ].join("");
 }
 
 // lista „Sprzedawca” ma pokazywać widok efektywny (opcja bez wierszy → „wszystkie”), także gdy HTML się nie zmienił
@@ -471,7 +507,7 @@ export function htmlWynikow(dane, ui = {}) {
   const adnotacje = widok.brakujace.map((b) => `<p class="adnotacja">${esc(T.brakTaryfy(b.oferta, b.taryfy))}</p>`).join("");
   const uwagi = widok.uwagi.map(({ oferta, uwagi }) => `<p class="adnotacja"><strong>${esc(oferta)}:</strong> ${uwagi.map(esc).join(" ")}</p>`).join("");
   const lista = dane.wybor
-    ? `<label class="wybor"><span>${T.sprzedawca}</span><select data-sprzedawca>${dane.wybor.opcje.map((o) => `<option value="${esc(o)}"${o === widok.id ? " selected" : ""}>${esc(etykietaOferty(o, dane.kompleksowa))}</option>`).join("")}</select></label>`
+    ? `<label class="wybor"><span>${T.sprzedawca}</span><select data-sprzedawca>${htmlOpcji(dane.wybor.opcje, dane.kompleksowa, widok.id)}</select></label>`
     : "";
   const sekcja2 = k.length
     ? `<section class="karta">

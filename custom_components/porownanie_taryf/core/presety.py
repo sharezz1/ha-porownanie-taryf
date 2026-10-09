@@ -75,7 +75,7 @@ class Konfiguracja:
     kompleksowe: dict[str, Cennik]  # wszystkie oferty z katalogu, liczone równolegle
 
 
-# Katalog ofert kompleksowych. Ceny netto Z AKCYZĄ (stąd akcyza=0.0), VAT liczony od całości.
+# Katalog ofert kompleksowych. Ceny netto Z AKCYZĄ w cenie (stąd akcyza=0.0); wyjątek: PGE — cennik netto bez akcyzy (akcyza=0.005); VAT liczony od całości.
 # Oferta bez danej taryfy = brak scenariusza. Kolejność wpisów = kolejność w panelu przy remisie.
 SPRZEDAWCY: dict[str, Cennik] = {
     "enea_2026_wybor": Cennik("Enea", 10.49, 0.0, {
@@ -96,6 +96,42 @@ SPRZEDAWCY: dict[str, Cennik] = {
         "(20,01 zł netto przy fakturze papierowej), obejmuje usługę „Elektryk”.",
         "Przy zmianie sprzedawcy grupa taryfowa musi być taka jak dotychczasowa — na inną grupę (np. G12sezON) najpierw zmiana grupy u operatora.",
         "Cennik dla umów zawieranych od 1.10 do 31.12.2026.",
+    )),
+    "tauron_extra_2026": Cennik("Tauron", 6.80, 0.0, {
+        "G11": {"calodobowa": 0.5020},
+        "G12": {"dzien": 0.5480, "noc": 0.4180},
+        "G12w": {"szczyt": 0.6270, "pozaszczyt": 0.4180},
+    }, oferta="Twój Extra Elektryk 24H", uwagi=(
+        "Cennik „Prąd z Twoim Extra Elektrykiem 24H”: umowę trzeba zawrzeć do 31.10.2026; ceny i stawki stałe do 30.09.2027.",
+        "Opłata handlowa obejmuje gwarancję stałej ceny i usługę „Elektryk 24H”; brak opłaty za wcześniejsze rozwiązanie.",
+        "Ceny netto z cennika, z akcyzą; dostępna poza obszarem TAURON Dystrybucja (Enea, Energa, PGE, Stoen).",
+    )),
+    "tauron_natura_2026": Cennik("Tauron", 25.61, 0.0, {
+        "G11": {"calodobowa": 0.4999},
+        "G12": {"dzien": 0.5457, "noc": 0.4163},
+        "G12w": {"szczyt": 0.6244, "pozaszczyt": 0.4163},
+    }, oferta="Energia dla natury i pszczół", uwagi=(
+        "Cennik „Energia dla natury i pszczół”: umowę trzeba zawrzeć do 31.10.2026; ceny i stawki stałe do 30.09.2029.",
+        "Opłata handlowa: 0 zł/mies. do 31.12.2026, od 01.01.2027 — 25,61 zł/mies. netto; w obliczeniach przyjęto 25,61 (koszt docelowy — w 2026 r. realnie 0 zł).",
+        "Ceny netto z cennika, z akcyzą; certyfikat pochodzenia energii z OZE; dostępna poza obszarem TAURON Dystrybucja.",
+    )),
+    "pge_taryfowy_gtpa": Cennik("PGE", 9.99, 0.005, {
+        "G11": {"calodobowa": 0.6170},
+        "G12": {"dzien": 0.6975, "noc": 0.4367},
+        "G12w": {"szczyt": 0.7170, "pozaszczyt": 0.5027},
+    }, oferta="cennik taryfowy", uwagi=(
+        "„Cennik taryfowy dla Klientów z grup G korzystających z prawa wyboru Sprzedawcy” (GT-PA) — obowiązuje od 1.08.2025.",
+        "Ceny netto BEZ akcyzy — akcyza 0,005 zł/kWh doliczana poza VAT; cennik bezterminowy, bez gwarancji stałości cen.",
+        "Dla konsumentów w obszarach: Enea, Energa, TAURON (w obszarze PGE Dystrybucja PGE ma inne ceny).",
+    )),
+    "energa_podstawowa_2026": Cennik("Energa", 16.99, 0.0, {
+        "G11": {"calodobowa": 0.5000},
+        "G12": {"dzien": 0.6080, "noc": 0.4037},
+        "G12w": {"szczyt": 0.6080, "pozaszczyt": 0.4037},
+    }, oferta="Podstawowa 2 lata", uwagi=(
+        "Oferta „Podstawowa 2 lata”: umowę można zawrzeć do 31.12.2026; stałe warunki przez 24 miesiące.",
+        "Ceny netto wyliczone z brutto (÷ 1,23): 0,6150 / 0,7478 / 0,4966 zł/kWh brutto; jedna cena dla G12 i G12w.",
+        "Opłata handlowa 20,90 zł/mies. z e-fakturą (25,90 zł z papierową); po okresie oferty — cennik standardowy.",
     )),
 }
 

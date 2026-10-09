@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  etykietaOferty, synchronizujListe, htmlCenSekcji1, htmlCenSekcji2, htmlWynikow, kluczRenderu, komorkaCeny, kwota, nazwaStrefy, widokSekcji2, naTaryfy, nazwaOkresu, podsumowanie, przesun, tekst, tekstOstrzezenia, udzialy,
+  etykietaOferty, grupyOpcji, htmlOpcji, synchronizujListe, htmlCenSekcji1, htmlCenSekcji2, htmlWynikow, kluczRenderu, komorkaCeny, kwota, nazwaStrefy, widokSekcji2, naTaryfy, nazwaOkresu, podsumowanie, przesun, tekst, tekstOstrzezenia, udzialy,
   werdyktKompleksowa, werdyktPstryk, zbierzDane,
 } from "../../custom_components/porownanie_taryf/frontend/panel.js";
 
@@ -387,7 +387,7 @@ test("brak atrybutu taryfa: taryfa = ostatni człon klucza (nowe klucze kompleks
 
 // --- v0.5.0: lista „Sprzedawca” filtruje sekcję 2, rozwijane tabele cen (brutto, pod spodem netto) ---
 
-const WYBOR_OPCJE = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026", "cennik"];
+const WYBOR_OPCJE = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026", "tauron_extra_2026", "tauron_natura_2026", "pge_taryfowy_gtpa", "energa_podstawowa_2026", "cennik"];
 // syntetyczne ceny netto: stawki dystrybucji G12 dzien 0,3214 / noc 0,1348, vat 0,23
 const CENY_DYSTR = { vat: 0.23, stawki_dystrybucji: { dzien: 0.3214, noc: 0.1348 }, oplaty_dystrybucji_mc: { sieciowa: 10, abonament: 3.84, mocowa: 24.05 } };
 const idOf = (id, extra = {}) => ({ id_oferty: id, ...CENY_DYSTR, ceny_energii: { dzien: 0.6, noc: 0.4 }, oplata_handlowa_mc: 5, akcyza_kwh: 0, ...extra });
@@ -423,7 +423,7 @@ test("komorkaCeny: brutto = netto × (1 + vat), pod spodem netto; null → „br
 test("polskie nazwy stref i etykiety opcji; nieznane zwracane jak są", () => {
   assert.equal(nazwaStrefy("dzien"), "dzień"); assert.equal(nazwaStrefy("pozaszczyt"), "pozaszczyt"); assert.equal(nazwaStrefy("calodobowa"), "całodobowo");
   assert.equal(nazwaStrefy("nowa"), "nowa");
-  assert.deepEqual(WYBOR_OPCJE.map((o) => etykietaOferty(o)), ["Wszystkie oferty", "Enea — prawo wyboru", "Enea — EneoPewność", "Własny cennik"]);
+  assert.deepEqual(WYBOR_OPCJE.map((o) => etykietaOferty(o)), ["Wszystkie oferty", "Enea — prawo wyboru", "Enea — EneoPewność", "Tauron — Twój Extra Elektryk 24H", "Tauron — Energia dla natury i pszczół", "PGE — cennik taryfowy", "Energa — Podstawowa 2 lata", "Własny cennik"]);
   assert.equal(etykietaOferty("inny_id"), "inny_id");
 });
 test("wybór „wszystkie”: sekcja 2 pokazuje wszystkie oferty; select ma opcje z polskimi etykietami i zaznaczoną wybraną", () => {
@@ -588,4 +588,64 @@ test("brutto z tabeli × kWh odtwarza kwotę sekcji (syntetycznie)", () => {
   // 100 kWh po 0,3214 netto → 39,53 zł brutto; tyle samo co netto × 1,23 liczone na sumie
   const brutto = Number(komorkaCeny(0.3214, 0.23).match(/brutto">([\d,]+)/)[1].replace(",", "."));
   assert.ok(Math.abs(brutto * 100 - 0.3214 * 100 * 1.23) < 0.005 * 100);
+});
+
+// --- v0.6.0: grupowanie listy „Sprzedawca” po sprzedawcy (Enea → Tauron → PGE → Energa) ---
+
+const OPCJE_6 = ["wszystkie", "enea_2026_wybor", "enea_eneopewnosc_2026", "tauron_extra_2026", "tauron_natura_2026", "pge_taryfowy_gtpa", "energa_podstawowa_2026", "cennik"];
+const oferta6 = (id, sprzedawca, of, t, razem) => {
+  const sc = [`kompleksowa_${id}_${t}`, `${sprzedawca} ${of} + ${t}`, razem, 400, 300, 0, false, meta("kompleksowa", sprzedawca, t, of)];
+  return [...sc.slice(0, 7), { ...sc[7], id_oferty: id }];
+};
+const KATALOG6 = (stan = "wszystkie") => hassWybor(stan, { opcje: OPCJE_6, extraScen: [
+  PSEZ,
+  oferta6("tauron_extra_2026", "Tauron", "Twój Extra Elektryk 24H", "G12", 720),
+  oferta6("tauron_natura_2026", "Tauron", "Energia dla natury i pszczół", "G12", 730),
+  oferta6("pge_taryfowy_gtpa", "PGE", "cennik taryfowy", "G12", 900),
+  oferta6("energa_podstawowa_2026", "Energa", "Podstawowa 2 lata", "G12", 715),
+]});
+
+test("grupyOpcji: „wszystkie” u góry, grupy wg sprzedawcy (Enea → Tauron → PGE → Energa), „cennik” na końcu", () => {
+  const d = zbierzDane(KATALOG6());
+  assert.deepEqual(grupyOpcji(OPCJE_6, d.kompleksowa), {
+    gory: ["wszystkie"],
+    grupy: [
+      { sprzedawca: "Enea", opcje: ["enea_2026_wybor", "enea_eneopewnosc_2026"] },
+      { sprzedawca: "Tauron", opcje: ["tauron_extra_2026", "tauron_natura_2026"] },
+      { sprzedawca: "PGE", opcje: ["pge_taryfowy_gtpa"] },
+      { sprzedawca: "Energa", opcje: ["energa_podstawowa_2026"] },
+    ],
+    dol: ["cennik"],
+  });
+});
+test("HTML listy: <optgroup> w kolejności, „wszystkie” u góry / „cennik” na końcu, pełny katalog 6 ofert w sekcji 2", () => {
+  const d = zbierzDane(KATALOG6());
+  const po = sekcja2(htmlWynikow(d));
+  assert.deepEqual([...po.matchAll(/<optgroup label="([^"]+)">/g)].map((m) => m[1]), ["Enea", "Tauron", "PGE", "Energa"]);
+  assert.ok(po.indexOf('<option value="wszystkie" selected>') < po.indexOf('<optgroup label="Enea">'));
+  assert.ok(po.indexOf('<optgroup label="Energa">') < po.indexOf('<option value="cennik"'));
+  assert.match(po, /<option value="tauron_extra_2026">Tauron — Twój Extra Elektryk 24H<\/option>/);
+  assert.match(po, /<option value="tauron_natura_2026">Tauron — Energia dla natury i pszczół<\/option>/);
+  assert.match(po, /<option value="pge_taryfowy_gtpa">PGE — cennik taryfowy<\/option>/);
+  assert.match(po, /<option value="energa_podstawowa_2026">Energa — Podstawowa 2 lata<\/option>/);
+  assert.equal(new Set(d.kompleksowa.filter((s) => s.idOferty !== "cennik").map((s) => s.idOferty)).size, 6);   // Enea ×2 + Tauron ×2 + PGE + Energa
+  for (const e of ["Enea prawo wyboru + G12", "Enea EneoPewność + G12", "Tauron Twój Extra Elektryk 24H + G12", "Tauron Energia dla natury i pszczół + G12", "PGE cennik taryfowy + G12", "Energa Podstawowa 2 lata + G12"]) assert.ok(po.includes(e), e);
+});
+test("nagłówek sekcji 2: pojedynczy sprzedawca Tauron → dopełniacz „od Tauronu”", () => {
+  assert.match(sekcja2(htmlWynikow(zbierzDane(KATALOG6("tauron_natura_2026")))), /^Umowa kompleksowa Tauron \(prąd i dystrybucja od Tauronu\)<\/h3>/);
+});
+test("adnotacje braków dla nowych ofert: brakuje im G12w, G12sezON i G13active", () => {
+  const po = sekcja2(htmlWynikow(zbierzDane(KATALOG6())));
+  for (const of_ of ["Twój Extra Elektryk 24H", "Energia dla natury i pszczół", "cennik taryfowy", "Podstawowa 2 lata"]) {
+    assert.ok(po.includes(`Oferta „${of_}” nie obejmuje G12w ani G12sezON ani G13active.`), of_);
+  }
+});
+test("htmlOpcji: opcja bez wiersza na końcu, label optgroup i etykieta opcji escapowane", () => {
+  const zly = { idOferty: "x", sprzedawca: "\"><img onerror=1>", oferta: "Of", taryfa: "G12" };
+  const html = htmlOpcji(["wszystkie", "x", "bez"], [zly], null);
+  assert.ok(html.includes('<optgroup label="&#34;&#62;&#60;img onerror=1&#62;">'));
+  assert.ok(html.includes('<option value="x">&#34;&#62;&#60;img onerror=1&#62; — Of</option>'));
+  assert.ok(html.includes('<option value="bez">bez</option>'));
+  assert.ok(html.indexOf('<option value="bez">') > html.indexOf("</optgroup>"));
+  assert.doesNotMatch(html, /<img/);
 });

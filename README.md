@@ -84,7 +84,7 @@ Wszystkie encje należą do jednego urządzenia (usługi) „Porównanie taryf�
 | Encja | Działanie |
 |---|---|
 | `select` Okres | Dzień / Miesiąc / Rok / Zakres własny (domyślnie Miesiąc). |
-| `select` Sprzedawca | Oferta kompleksowa pokazywana w sekcji 2 panelu: Wszystkie oferty (domyślnie) / Enea — prawo wyboru / Enea — EneoPewność / Własny cennik (gdy zdefiniowany). Tylko filtruje widok panelu, nie zmienia liczb; wybór spoza listy wraca do „Wszystkie oferty”. |
+| `select` Sprzedawca | Oferta kompleksowa pokazywana w sekcji 2 panelu: Wszystkie oferty (domyślnie) / Enea — prawo wyboru / Enea — EneoPewność / Tauron — Twój Extra Elektryk 24H / Tauron — Energia dla natury i pszczół / PGE — cennik taryfowy / Energa — Podstawowa 2 lata / Własny cennik (gdy zdefiniowany). Lista jest grupowana po sprzedawcy. Tylko filtruje widok panelu, nie zmienia liczb; wybór spoza listy wraca do „Wszystkie oferty”. |
 | `date` Data | Dzień (lub miesiąc/rok zawierający tę datę, lub początek zakresu). Domyślnie 1. dzień poprzedniego miesiąca. |
 | `date` Koniec zakresu | Używany tylko w trybie „Zakres własny”. Domyślnie równy Dacie (zakres jednodniowy). |
 
@@ -98,7 +98,7 @@ Zmiana okresu przelicza wynik z danych zapisanych lokalnie, **bez zapytań do AP
 | `<scenariusz> — różnica względem obecnej` | `razem` scenariusza minus `razem` obecnego. **Dodatnia = drożej niż obecnie**, ujemna = taniej. Nie ma jej dla scenariusza obecnego. |
 | `kWh w tanich godzinach` / `kWh w drogich godzinach` | Zużycie w tanich i w pozostałych strefach obecnej taryfy (kWh). |
 
-Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, wbudowane oferty kompleksowe *Enea prawo wyboru + G11 / G12 / G12w* i *Enea EneoPewność + G11 / G12 / G12w / G12sezON / G13active* (patrz niżej) oraz, jeśli zdefiniujesz własny cennik, `<nazwa cennika> + <taryfa>` dla taryf z kompletem cen.
+Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, wbudowane oferty kompleksowe (patrz „Oferty kompleksowe”): *Enea prawo wyboru + G11 / G12 / G12w*, *Enea EneoPewność + G11 / G12 / G12w / G12sezON / G13active*, *Tauron Twój Extra Elektryk 24H + G11 / G12 / G12w*, *Tauron Energia dla natury i pszczół + G11 / G12 / G12w*, *PGE cennik taryfowy + G11 / G12 / G12w*, *Energa Podstawowa 2 lata + G11 / G12 / G12w* oraz, jeśli zdefiniujesz własny cennik, `<nazwa cennika> + <taryfa>` dla taryf z kompletem cen.
 
 **Atrybuty sensorów** (nazwy bez polskich znaków, wygodne w szablonach):
 
@@ -129,7 +129,7 @@ Scenariusze to *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sez
 | `oplaty_dystrybucji_mc` | Opłaty miesięczne dystrybucji: `sieciowa` (składnik stały), `abonament`, `mocowa`. |
 | `ceny_energii` | Oferty kompleksowe i własny cennik: cena energii na strefę (zł/kWh). |
 | `oplata_handlowa_mc` | Oferty kompleksowe i własny cennik: opłata handlowa (zł/mies.). |
-| `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
+| `akcyza_kwh` | Akcyza zł/kWh: 0 w katalogu (ceny z akcyzą), 0,005 dla oferty PGE (cennik netto bez akcyzy), z cennika własnego; dla Pstryk średnia z okresu (`null` bez odczytów). |
 | `srednia_cena_energii` | Tylko Pstryk: `przed_tarcza` i `po_tarczy`, średnia cena energii z obsługą (zł/kWh) w okresie; `null` bez odczytów. |
 | `powod` | Tylko gdy wynik jest niedostępny: `koniec_przed_data`. |
 
@@ -137,7 +137,7 @@ Sensory „kWh” mają tylko `okres_od`, `okres_do`, `pokrycie` i `dane_z`.
 
 ### Oferty kompleksowe
 
-Obok scenariuszy Pstryk integracja ma wbudowane dwie oferty kompleksowe **Enea** (w kodzie to katalog ofert; wszystkie ceny są netto **z akcyzą**, VAT jest doliczany do całości).
+Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**Enea**, **Tauron**, **PGE**, **Energa**). To wydanie dodaje oferty dla obszaru **Enea Operator**; kolejne obszary są w przygotowaniu. Ceny w katalogu są netto **z akcyzą** (wyjątek: cennik PGE — netto bez akcyzy, doliczanej osobno); VAT jest doliczany do całości.
 
 **1. „Prawo wyboru” (`enea_2026_wybor`)** — taryfa dla klienta, który zmienił sprzedawcę i wraca do Enei, 2026: opłata handlowa 10,49 zł/mc netto.
 
@@ -166,10 +166,56 @@ Obok scenariuszy Pstryk integracja ma wbudowane dwie oferty kompleksowe **Enea**
 - **Ważność cennika:** obowiązuje dla umów zawieranych od 1.10 do 31.12.2026, ceny są stałe przez 36 miesięcy.
 - **Źródło:** Cennik oferty EneoPewność 36 miesięcy (nr EP36010330_G) i Regulamin oferty z 1.10.2026, `https://www.enea.pl/eneopewnosc`. To oferta rynkowa; przed decyzją potwierdź warunki w Enei.
 
+**3. „Twój Extra Elektryk 24H” (`tauron_extra_2026`)** — oferta Taurona dla klientów poza obszarem TAURON Dystrybucja (m.in. obszar Enea Operator), umowę trzeba zawrzeć od 1.10 do **31.10.2026**, ceny i stawki stałe do **30.09.2027**; opłata handlowa 6,80 zł/mc netto (8,36 zł brutto).
+
+| Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
+|---|---|
+| G11 | 0,5020 |
+| G12 | dzień 0,5480 · noc 0,4180 |
+| G12w | szczyt 0,6270 · pozaszczyt 0,4180 |
+
+- Opłata handlowa obejmuje gwarancję niezmienności cen i stawek oraz usługę „Elektryk 24H”; wcześniejsze wypowiedzenie bez opłaty.
+- **Źródło:** Cennik „Prąd z Twoim Extra Elektrykiem 24H” (Q4 2026), `https://www.tauron.pl/-/media/offer-documents/produkty/2026/10-2026/twoj-extra-elektryk/exp/EE-GD-GSC-B-Extra-E24D-TS-Ek-1-q4.ashx`; lejek zamówienia: `https://www.tauron.pl/dla-domu/prad/zmiensprzedawce/lejek?offer=elektryk_extra&contract=1`.
+- Akcyza: cennik nie wymienia jej wprost; przyjęto, że ceny netto zawierają akcyzę (brutto = netto × 1,23) — do potwierdzenia u sprzedawcy.
+
+**4. „Energia dla natury i pszczół” (`tauron_natura_2026`)** — oferta Taurona (z certyfikatem pochodzenia energii z OZE), umowę zawrzeć do **31.10.2026**, ceny i stawki stałe do **30.09.2029**; opłata handlowa **0 zł/mc do 31.12.2026, od 1.01.2027 — 25,61 zł/mc netto**.
+
+| Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
+|---|---|
+| G11 | 0,4999 |
+| G12 | dzień 0,5457 · noc 0,4163 |
+| G12w | szczyt 0,6244 · pozaszczyt 0,4163 |
+
+- **Ważne przy interpretacji wyniku:** w obliczeniach przyjęto opłatę docelową **25,61 zł/mc**, więc dla miesięcy 2026 r. (promocja: opłata 0 zł) panel pokazuje tę ofertę droższą o ok. 31,50 zł/mc brutto, niż jest w rzeczywistości.
+- Kara za wcześniejsze wypowiedzenie: maks. 94,50 zł.
+- **Źródło:** Cennik „Energia dla natury i pszczół” (Q4 2026), `https://www.tauron.pl/-/media/offer-documents/produkty/2026/10-2026/energia-dla-natury-i-pszczol/exp/EE-GD-GSC-B-eCert-ule-TS-Ek-3-q4.ashx`; lejek: `https://www.tauron.pl/dla-domu/prad/zmiensprzedawce/lejek?offer=pszczoly_natura&contract=3`.
+
+**5. „Cennik taryfowy” GT-PA (`pge_taryfowy_gtpa`)** — cennik taryfowy PGE Obrót dla odbiorców z grup G korzystających z prawa wyboru sprzedawcy (obszary: Enea Operator, Energa-Operator, TAURON Dystrybucja; w obszarze PGE Dystrybucja PGE ma inne ceny), obowiązuje od 1.08.2025, bezterminowy — **bez gwarancji stałości cen**; opłata handlowa 9,99 zł/mc netto (12,29 zł brutto).
+
+| Taryfa | Ceny energii (zł/kWh netto, **bez akcyzy**) |
+|---|---|
+| G11 | 0,6170 |
+| G12 | dzień 0,6975 · noc 0,4367 |
+| G12w | szczyt 0,7170 · pozaszczyt 0,5027 |
+
+- Uwaga na konwencję: cennik podaje ceny **bez akcyzy** — integracja dolicza akcyzę 0,005 zł/kWh poza VAT (w odróżnieniu od pozostałych ofert katalogu, gdzie ceny są z akcyzą). Grupa G12N z cennika PGE nie ma odpowiednika u Enea Operator — pomijana.
+- **Źródło:** Cennik taryfowy GT-PA (od 1.08.2025), `https://www.pge-obrot.pl/content/download/f9c840579ac156bf0860aefc6f0c846a/file/cennik-taryfowy-gtpa-082025.pdf`; lista OSD dla umowy kompleksowej: `https://www.pge-obrot.pl/content/download/f7dc6a2d2dc57624a76988b2dee26604/file/lista-operatorow-01.02.2026.pdf`.
+
+**6. „Podstawowa 2 lata” (`energa_podstawowa_2026`)** — oferta Energi: umowę można zawrzeć do **31.12.2026**, stałe warunki przez **24 miesiące**; opłata handlowa 16,99 zł/mc netto (20,90 zł/mc brutto z e-fakturą; 25,90 zł brutto z fakturą papierową). Jedna cena dla G12 i G12w.
+
+| Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
+|---|---|
+| G11 | 0,5000 |
+| G12 | dzień 0,6080 · noc 0,4037 |
+| G12w | szczyt 0,6080 · pozaszczyt 0,4037 |
+
+- Regulamin podaje ceny wyłącznie brutto (0,6150 / 0,7478 / 0,4966 zł/kWh); wartości netto wyliczono jako brutto ÷ 1,23 (zaokrąglenia ±0,0001). Po okresie oferty rozliczenie wg cennika standardowego.
+- **Źródło:** Regulamin „Podstawowa 2 lata” (od 16.02.2026), `https://www.energa.pl/dam/jcr:0767b1ed-5ea1-467d-9828-4905845ffc2b/Regulamin%20naszej%20oferty%20Podstawowa%202%20lata%20obowiązujący%20od%2016%20lutego%202026%20roku.pdf`.
+
 Pozostałe informacje:
 
-- Scenariusze Enei mają `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, a oferty rozróżnia atrybut `oferta` i klucz scenariusza. Własny cennik ma tę samą `grupę`, `sprzedawca` to jego nazwa, a `oferta` jest pusta; wszystkie mogą występować jednocześnie.
-- Ofertę pokazywaną w sekcji 2 panelu wybierasz encją `select` Sprzedawca (nie zmienia obliczeń). Ważność cenników: „prawo wyboru” to cennik na 2026 rok; „EneoPewność” to umowy zawierane od 1.10 do 31.12.2026, ceny stałe przez 36 miesięcy.
+- Scenariusze katalogowe mają `grupa` = `kompleksowa`, `sprzedawca` = nazwa sprzedawcy (`Enea`, `Tauron`, `PGE`, `Energa`), a oferty rozróżnia atrybut `oferta` i klucz scenariusza. Własny cennik ma tę samą `grupę`, `sprzedawca` to jego nazwa, a `oferta` jest pusta; wszystkie mogą występować jednocześnie.
+- Ofertę pokazywaną w sekcji 2 panelu wybierasz encją `select` Sprzedawca (nie zmienia obliczeń); lista jest grupowana po sprzedawcy (Enea → Tauron → PGE → Energa, u góry „Wszystkie oferty”, na końcu własny cennik). Ważność cenników: „prawo wyboru” — 2026; „EneoPewność” — umowy od 1.10 do 31.12.2026; „Twój Extra Elektryk 24H” i „Energia dla natury i pszczół” — umowy do 31.10.2026; „Podstawowa 2 lata” — umowy do 31.12.2026; „Cennik taryfowy” PGE — bezterminowy.
 
 **Aktualizacja z v0.3: zmiana nazw encji oferty kompleksowej.** Klucz scenariusza zawiera teraz identyfikator oferty: `kompleksowa_G12` zmienił się na `kompleksowa_enea_2026_wybor_G12` (i analogicznie dla G11, G12w, oraz encji `razem` i `roznica`). Po aktualizacji stare encje oferty Enea znikają z rejestru, a w ich miejsce powstają nowe, z nowymi identyfikatorami. **Zaktualizuj automatyzacje, szablony i karty, które odwoływały się do starych encji**. Encje Pstryk i własnego cennika zostają bez zmian.
 
@@ -179,7 +225,7 @@ Integracja sama dodaje do paska bocznego HA panel **Porównanie taryf** (ikona w
 
 - **Linijka podsumowania** na górze: kwota obecnej umowy za wybrany okres i najtańsza opcja ogółem z obu sekcji (albo informacja, że obecna jest najtańsza lub równie tania jak inna).
 - **Sekcja 1. „Prąd z Pstryka + dystrybucja Enea Operator”:** własny werdykt (najtańsza taryfa dystrybucyjna albo „obecna taryfa jest najtańsza”), wykres taryf G11 / G12 / G12w / G12sezON / G13active przy umowie z Pstryk oraz kafelki: Tarcza Pstryk, zużycie, tanie i drogie godziny, data danych.
-- **Sekcja 2. „Umowa kompleksowa Enea”:** własny werdykt (najtańsza oferta kompleksowa kontra obecna umowa z Pstryk) i jeden wspólny ranking wszystkich ofert z katalogu (Enea prawo wyboru, Enea EneoPewność) oraz własnego cennika, jeśli go zdefiniujesz. Pod wykresem panel pokazuje dla każdej oferty, których taryf ona nie obejmuje, oraz jej uwagi (warunki, ważność cennika, potwierdzenie oferty w Enei).
+- **Sekcja 2. „Umowa kompleksowa”:** własny werdykt (najtańsza oferta kompleksowa kontra obecna umowa z Pstryk) i jeden wspólny ranking wszystkich ofert z katalogu (Enea, Tauron, PGE, Energa) oraz własnego cennika, jeśli go zdefiniujesz. Pod wykresem panel pokazuje dla każdej oferty, których taryf ona nie obejmuje, oraz jej uwagi (warunki i ważność cennika).
 - **Lista „Sprzedawca / oferta”** w nagłówku sekcji 2 zawęża do jednej oferty wykres, werdykt, listę brakujących taryf i uwagi; „Wszystkie oferty” to wspólny ranking. Wybór jest zapisany w encji HA, więc jest taki sam na każdym urządzeniu. Podsumowanie na górze zawsze liczy ze wszystkich ofert.
 - **Rozwijane tabele „Ceny w tej sekcji”** pod obiema sekcjami. Każda liczba jest podana brutto (duży druk), a pod nią netto (mały druk). Sekcja 1: stawki dystrybucji każdej taryfy na strefę, opłaty stałe oraz średnia cena energii Pstryk w okresie przed i po Tarczy, razem z opłatą handlową Pstryka. Sekcja 2: ceny pokazanej oferty (ofert) na strefę i opłata handlowa.
 
@@ -296,7 +342,7 @@ All entities belong to a single device (service) named "Porównanie taryf", so t
 | Entity | Behaviour |
 |---|---|
 | `select` Period | Day / Month / Year / Custom range (default Month). |
-| `select` Seller | Comprehensive offer shown in panel section 2: All offers (default) / Enea — right to choose / Enea — EneoPewność / Own price list (when defined). It only filters the panel view and does not change any figure; a value outside the list falls back to "All offers". |
+| `select` Seller | Comprehensive offer shown in panel section 2: All offers (default) / Enea — right to choose / Enea — EneoPewność / Tauron — Extra Electrician 24H / Tauron — Energy for Nature and Bees / PGE — tariff price list / Energa — Basic 2 years / Own price list (when defined). The list is grouped by seller. It only filters the panel view and does not change any figure; a value outside the list falls back to "All offers". |
 | `date` Date | The day (or the month/year containing the date, or the start of the range). Defaults to the 1st day of the previous month. |
 | `date` Range end | Used only in "Custom range" mode. Defaults to the Date (a one-day range). |
 
@@ -310,7 +356,7 @@ Changing the period recalculates from locally stored data, **without any API cal
 | `<scenario> — difference vs current` | The scenario's `total` minus the current scenario's `total`. **Positive = more expensive than now**, negative = cheaper. Not created for the current scenario. |
 | `kWh in cheap hours` / `kWh in expensive hours` | Consumption in the cheap and in the remaining zones of the current tariff (kWh). |
 
-The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, the built-in comprehensive offers *Enea prawo wyboru + G11 / G12 / G12w* and *Enea EneoPewność + G11 / G12 / G12w / G12sezON / G13active* (see below) and, if you define an own price list, `<price list name> + <tariff>` for the tariffs with a complete set of prices.
+The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12sezON*, *Pstryk + G13active*, the built-in comprehensive offers (see "Comprehensive offers"): *Enea prawo wyboru + G11 / G12 / G12w*, *Enea EneoPewność + G11 / G12 / G12w / G12sezON / G13active*, *Tauron Twój Extra Elektryk 24H + G11 / G12 / G12w*, *Tauron Energia dla natury i pszczół + G11 / G12 / G12w*, *PGE cennik taryfowy + G11 / G12 / G12w*, *Energa Podstawowa 2 lata + G11 / G12 / G12w* and, if you define an own price list, `<price list name> + <tariff>` for the tariffs with a complete set of prices.
 
 **Sensor attributes** (names are ASCII, convenient in templates):
 
@@ -341,7 +387,7 @@ The scenarios are *Pstryk + G11*, *Pstryk + G12*, *Pstryk + G12w*, *Pstryk + G12
 | `oplaty_dystrybucji_mc` | Monthly distribution fees: `sieciowa` (fixed component), `abonament`, `mocowa` (capacity fee). |
 | `ceny_energii` | Comprehensive offers and own price list: energy price per zone (zł/kWh). |
 | `oplata_handlowa_mc` | Comprehensive offers and own price list: trading fee (zł/mies.). |
-| `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), from the own price list; for Pstryk the period average (`null` without readings). |
+| `akcyza_kwh` | Excise PLN/kWh: 0 for the catalogue (prices include excise), 0.005 for the PGE offer (price list is net of excise), from the own price list; for Pstryk the period average (`null` without readings). |
 | `srednia_cena_energii` | Pstryk only: `przed_tarcza` (before the Shield) and `po_tarczy` (after), average energy price including the service fee (PLN/kWh) over the period; `null` without readings. |
 | `powod` | Only when the result is unavailable: `koniec_przed_data`. |
 
@@ -349,7 +395,7 @@ The "kWh" sensors only have `okres_od`, `okres_do`, `pokrycie` and `dane_z`.
 
 ### Comprehensive offers
 
-Besides the Pstryk scenarios the integration has two built-in comprehensive offers from **Enea** (in code this is an offer catalogue; all prices are net **including excise duty**, VAT is added to the whole).
+Besides the Pstryk scenarios the integration has a built-in catalogue of comprehensive offers (**Enea**, **Tauron**, **PGE**, **Energa**). This release adds offers for the **Enea Operator** area; more areas are in preparation. All prices are net **including excise duty** (exception: PGE's price list is net of excise, added separately); VAT is added to the whole.
 
 **1. "Prawo wyboru" ("right to choose", `enea_2026_wybor`)** — the tariff for a customer who switched seller and returns to Enea, 2026: trading fee 10.49 PLN/month net.
 
@@ -378,10 +424,56 @@ Besides the Pstryk scenarios the integration has two built-in comprehensive offe
 - **Price list validity:** it applies to contracts signed from 1 Oct to 31 Dec 2026, with prices fixed for 36 months.
 - **Source:** the EneoPewność 36-month price list (no. EP36010330_G) and the offer's terms of 1 Oct 2026, `https://www.enea.pl/eneopewnosc`. It is a market offer; confirm the terms with Enea before deciding.
 
+**3. "Twój Extra Elektryk 24H" (Extra Electrician 24H, `tauron_extra_2026`)** — a Tauron offer for customers outside the TAURON Dystrybucja area (the Enea Operator area included); the contract must be signed from 1 to **31 Oct 2026**, prices and rates are fixed until **30 Sep 2027**; trading fee 6.80 PLN/month net (8.36 PLN gross).
+
+| Tariff | Energy prices (PLN/kWh net, excise included) |
+|---|---|
+| G11 | 0.5020 |
+| G12 | day 0.5480 · night 0.4180 |
+| G12w | peak 0.6270 · off-peak 0.4180 |
+
+- The fee includes the price-stability guarantee and the "Elektryk 24H" service; early termination carries no fee.
+- **Source:** the "Prąd z Twoim Extra Elektrykiem 24H" price list (Q4 2026), `https://www.tauron.pl/-/media/offer-documents/produkty/2026/10-2026/twoj-extra-elektryk/exp/EE-GD-GSC-B-Extra-E24D-TS-Ek-1-q4.ashx`; sales funnel: `https://www.tauron.pl/dla-domu/prad/zmiensprzedawce/lejek?offer=elektryk_extra&contract=1`.
+- Excise duty is not stated explicitly in the price list; the net prices are assumed to include it (gross = net × 1.23) — to be confirmed with the seller.
+
+**4. "Energia dla natury i pszczół" (Energy for Nature and Bees, `tauron_natura_2026`)** — a Tauron offer (with a renewable-energy-origin certificate); the contract must be signed by **31 Oct 2026**, prices and rates are fixed until **30 Sep 2029**; trading fee **0 PLN/month until 31 Dec 2026, then 25.61 PLN/month net from 1 Jan 2027**.
+
+| Tariff | Energy prices (PLN/kWh net, excise included) |
+|---|---|
+| G11 | 0.4999 |
+| G12 | day 0.5457 · night 0.4163 |
+| G12w | peak 0.6244 · off-peak 0.4163 |
+
+- **Important when reading a result:** the calculation uses the target fee of **25.61 PLN/month**, so for the 2026 months (fee 0 during the promotion) the panel shows this offer about 31.50 PLN/month gross more expensive than it really is.
+- Early-termination fee: up to 94.50 PLN.
+- **Source:** the "Energia dla natury i pszczół" price list (Q4 2026), `https://www.tauron.pl/-/media/offer-documents/produkty/2026/10-2026/energia-dla-natury-i-pszczol/exp/EE-GD-GSC-B-eCert-ule-TS-Ek-3-q4.ashx`; sales funnel: `https://www.tauron.pl/dla-domu/prad/zmiensprzedawce/lejek?offer=pszczoly_natura&contract=3`.
+
+**5. "Cennik taryfowy" GT-PA (`pge_taryfowy_gtpa`)** — PGE Obrót's tariff price list for G-group customers using the right to choose a seller (areas: Enea Operator, Energa-Operator, TAURON Dystrybucja; in the PGE Dystrybucja area PGE has different prices), in force since 1 Aug 2025, open-ended — **no price-stability guarantee**; trading fee 9.99 PLN/month net (12.29 PLN gross).
+
+| Tariff | Energy prices (PLN/kWh net, **excise NOT included**) |
+|---|---|
+| G11 | 0.6170 |
+| G12 | day 0.6975 · night 0.4367 |
+| G12w | peak 0.7170 · off-peak 0.5027 |
+
+- Mind the convention: the price list quotes prices **without excise** — the integration adds 0.005 PLN/kWh outside VAT (unlike the other catalogue offers, whose prices include excise). The G12N group from PGE's list has no Enea Operator counterpart and is skipped.
+- **Source:** the GT-PA tariff price list (since 1 Aug 2025), `https://www.pge-obrot.pl/content/download/f9c840579ac156bf0860aefc6f0c846a/file/cennik-taryfowy-gtpa-082025.pdf`; the list of DSOs covered by the comprehensive contract: `https://www.pge-obrot.pl/content/download/f7dc6a2d2dc57624a76988b2dee26604/file/lista-operatorow-01.02.2026.pdf`.
+
+**6. "Podstawowa 2 lata" (Basic 2 years, `energa_podstawowa_2026`)** — an Energa offer: the contract can be signed until **31 Dec 2026**, terms are fixed for **24 months**; trading fee 16.99 PLN/month net (20.90 PLN/month gross with e-invoicing; 25.90 PLN gross with a paper invoice). One price for both G12 and G12w.
+
+| Tariff | Energy prices (PLN/kWh net, excise included) |
+|---|---|
+| G11 | 0.5000 |
+| G12 | day 0.6080 · night 0.4037 |
+| G12w | peak 0.6080 · off-peak 0.4037 |
+
+- The terms quote gross prices only (0.6150 / 0.7478 / 0.4966 PLN/kWh); the net values are gross ÷ 1.23 (±0.0001). After the 24 months the standard price list applies.
+- **Source:** the "Podstawowa 2 lata" terms (since 16 Feb 2026), `https://www.energa.pl/dam/jcr:0767b1ed-5ea1-467d-9828-4905845ffc2b/Regulamin%20naszej%20oferty%20Podstawowa%202%20lata%20obowiązujący%20od%2016%20lutego%202026%20roku.pdf`.
+
 Other notes:
 
-- Enea scenarios have `grupa` = `kompleksowa`, `sprzedawca` = `Enea`, and the offers are told apart by the `oferta` attribute and the scenario key. An own price list has the same `grupa`, its name as `sprzedawca` and an empty `oferta`; all of them can exist at once.
-- The offer shown in panel section 2 is chosen with the Seller `select` entity (it does not change any calculation). Validity of the price lists: "prawo wyboru" is the 2026 price list; "EneoPewność" is for contracts signed from 1 Oct to 31 Dec 2026, with prices fixed for 36 months.
+- Catalogue scenarios have `grupa` = `kompleksowa`, `sprzedawca` = the seller's name (`Enea`, `Tauron`, `PGE`, `Energa`), and the offers are told apart by the `oferta` attribute and the scenario key. An own price list has the same `grupa`, its name as `sprzedawca` and an empty `oferta`; all of them can exist at once.
+- The offer shown in panel section 2 is chosen with the Seller `select` entity (it does not change any calculation); the list is grouped by seller (Enea → Tauron → PGE → Energa, with "All offers" at the top and the own price list at the bottom). Price list validity: "prawo wyboru" — 2026; "EneoPewność" — contracts from 1 Oct to 31 Dec 2026; "Twój Extra Elektryk 24H" and "Energia dla natury i pszczół" — contracts until 31 Oct 2026; "Podstawowa 2 lata" — contracts until 31 Dec 2026; PGE's "Cennik taryfowy" — open-ended.
 
 **Upgrading from v0.3: the comprehensive-offer entities are renamed.** The scenario key now contains the offer id: `kompleksowa_G12` became `kompleksowa_enea_2026_wybor_G12` (likewise for G11, G12w, and for both the `razem`/total and `roznica`/difference entities). After the update the old Enea-offer entities disappear from the registry and new ones, with new IDs, are created in their place. **Update any automations, templates and cards that referenced the old entities**. Pstryk and own-price-list entities are unchanged.
 
@@ -391,7 +483,7 @@ The integration adds a **Porównanie taryf** panel (always in Polish, as Pstryk 
 
 - **Summary line** at the top: the current contract's cost for the selected period and the cheapest option overall across both sections (or a note that the current one is the cheapest or as cheap as another).
 - **Section 1, "Pstryk power + Enea Operator distribution":** its own verdict (the cheapest distribution tariff, or "the current tariff is the cheapest"), a chart of G11 / G12 / G12w / G12sezON / G13active under the Pstryk contract and tiles: Pstryk Shield, consumption, cheap and expensive hours, data date.
-- **Section 2, "Enea comprehensive contract":** its own verdict (the cheapest comprehensive offer versus the current Pstryk contract) and one shared ranking of all catalogue offers (Enea prawo wyboru, Enea EneoPewność) plus your own price list, if you define one. Under the chart the panel shows, per offer, which tariffs it does not cover and its notes (conditions, price list validity, confirming the offer with Enea).
+- **Section 2, "Comprehensive contract":** its own verdict (the cheapest comprehensive offer versus the current Pstryk contract) and one shared ranking of all catalogue offers (Enea, Tauron, PGE, Energa) plus your own price list, if you define one. Under the chart the panel shows, per offer, which tariffs it does not cover and its notes (conditions and price list validity).
 - **"Sprzedawca / oferta" (seller / offer) dropdown** in the section 2 header narrows the chart, verdict, missing-tariff list and notes to one offer; "Wszystkie oferty" (all offers) is the shared ranking. The choice is stored in the HA entity, so it is the same on every device. The summary line at the top always counts all offers.
 - **Collapsible "Ceny w tej sekcji" (prices in this section) tables** under both sections. Every number is shown gross (large) with the net value below it (small print). Section 1: each tariff's distribution rates per zone, the fixed fees, and Pstryk's average energy price over the period before and after the Shield, including Pstryk's trading fee. Section 2: the prices of the shown offer(s) per zone and the trading fee.
 

@@ -44,10 +44,16 @@ def test_klucze_i_etykiety():
         "kompleksowa_enea_eneopewnosc_2026_G11", "kompleksowa_enea_eneopewnosc_2026_G12",
         "kompleksowa_enea_eneopewnosc_2026_G12w", "kompleksowa_enea_eneopewnosc_2026_G12sezON",
         "kompleksowa_enea_eneopewnosc_2026_G13active",
+        "kompleksowa_tauron_extra_2026_G11", "kompleksowa_tauron_extra_2026_G12", "kompleksowa_tauron_extra_2026_G12w",
+        "kompleksowa_tauron_natura_2026_G11", "kompleksowa_tauron_natura_2026_G12", "kompleksowa_tauron_natura_2026_G12w",
+        "kompleksowa_pge_taryfowy_gtpa_G11", "kompleksowa_pge_taryfowy_gtpa_G12", "kompleksowa_pge_taryfowy_gtpa_G12w",
+        "kompleksowa_energa_podstawowa_2026_G11", "kompleksowa_energa_podstawowa_2026_G12", "kompleksowa_energa_podstawowa_2026_G12w",
         "cennik_G12"]
     assert etykieta("pstryk_G12", K) == "Pstryk + G12"
     assert etykieta("kompleksowa_enea_2026_wybor_G12", K) == "Enea prawo wyboru + G12"
     assert etykieta("kompleksowa_enea_eneopewnosc_2026_G12sezON", K) == "Enea EneoPewność + G12sezON"
+    assert etykieta("kompleksowa_tauron_extra_2026_G12", K) == "Tauron Twój Extra Elektryk 24H + G12"
+    assert etykieta("kompleksowa_energa_podstawowa_2026_G11", K) == "Energa Podstawowa 2 lata + G11"
     assert etykieta("cennik_G12", K) == "Enea + G12"  # własny cennik "Enea" z K
 
 
@@ -105,6 +111,22 @@ def test_policz_wrzesien():
                              ("G12w", 447.90819, 701.67318), ("G12sezON", 449.21076, 717.2007), ("G13active", 459.07413, 748.22991)):
         e = w.scenariusze[f"kompleksowa_enea_eneopewnosc_2026_{t}"]
         assert e.sprzedaz_przed == pytest.approx(brutto) and e.razem == pytest.approx(razem) and e.tarcza == 0.0, t
+    for klucz, brutto, razem in (
+        ("kompleksowa_tauron_extra_2026_G11", 452.93520, 756.07116),
+        ("kompleksowa_tauron_extra_2026_G12", 445.70280, 713.69274),
+        ("kompleksowa_tauron_extra_2026_G12w", 463.37790, 717.14289),
+        ("kompleksowa_tauron_natura_2026_G11", 474.21174, 777.34770),
+        ("kompleksowa_tauron_natura_2026_G12", 467.02362, 735.01356),
+        ("kompleksowa_tauron_natura_2026_G12w", 484.64337, 738.40836),
+        ("kompleksowa_pge_taryfowy_gtpa_G11", 562.30290, 865.43886),
+        ("kompleksowa_pge_taryfowy_gtpa_G12", 537.35850, 805.34844),
+        ("kompleksowa_pge_taryfowy_gtpa_G12w", 548.06319, 801.82818),
+        ("kompleksowa_energa_podstawowa_2026_G11", 463.69770, 766.83366),
+        ("kompleksowa_energa_podstawowa_2026_G12", 483.95580, 751.94574),
+        ("kompleksowa_energa_podstawowa_2026_G12w", 461.33979, 715.10478),
+    ):
+        s = w.scenariusze[klucz]
+        assert s.sprzedaz_przed == pytest.approx(brutto) and s.razem == pytest.approx(razem) and s.tarcza == 0.0, klucz
 
 
 def test_policz_obecna_g12sezon():

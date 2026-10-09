@@ -36,14 +36,25 @@ def test_taryfy_i_strefy():
 
 def test_katalog_sprzedawcow():
     d = {"uklad": "3f", "preset": "enea_2026", "taryfa": "G12", "tanie_g12": [0]}
-    assert list(SPRZEDAWCY) == ["enea_2026_wybor", "enea_eneopewnosc_2026"]
+    assert list(SPRZEDAWCY) == [
+        "enea_2026_wybor", "enea_eneopewnosc_2026", "tauron_extra_2026", "tauron_natura_2026",
+        "pge_taryfowy_gtpa", "energa_podstawowa_2026"]
     assert zbuduj_konfiguracje(d, {}).kompleksowe == SPRZEDAWCY
-    wybor, pewnosc = SPRZEDAWCY.values()
+    wybor, pewnosc = SPRZEDAWCY["enea_2026_wybor"], SPRZEDAWCY["enea_eneopewnosc_2026"]
     assert (wybor.nazwa, wybor.oferta, wybor.oplata_mc) == ("Enea", "prawo wyboru", 10.49) and len(wybor.uwagi) == 1
     assert (pewnosc.nazwa, pewnosc.oferta, pewnosc.oplata_mc, len(pewnosc.uwagi)) == ("Enea", "EneoPewność", 15.94, 3)
     assert pewnosc.ceny["G12sezON"] == {"pozostale": 0.5841, "zalecana": 0.3465}
     assert pewnosc.ceny["G13active"] == {"ograniczanie": 0.6435, "pozostale": 0.4950, "pobor": 0.2772}
     assert "G12sezON" not in wybor.ceny and "G13active" not in wybor.ceny
+    extra = SPRZEDAWCY["tauron_extra_2026"]
+    assert (extra.nazwa, extra.oferta, extra.oplata_mc) == ("Tauron", "Twój Extra Elektryk 24H", 6.80)
+    assert extra.ceny["G12w"] == {"szczyt": 0.6270, "pozaszczyt": 0.4180}
+    natura = SPRZEDAWCY["tauron_natura_2026"]
+    assert natura.oplata_mc == 25.61 and len(natura.uwagi) == 3
+    pge = SPRZEDAWCY["pge_taryfowy_gtpa"]
+    assert pge.akcyza == 0.005 and pge.ceny["G11"]["calodobowa"] == 0.6170
+    energa = SPRZEDAWCY["energa_podstawowa_2026"]
+    assert energa.ceny["G12"] == {"dzien": 0.6080, "noc": 0.4037} and energa.ceny["G12w"] == {"szczyt": 0.6080, "pozaszczyt": 0.4037}  # jedna cena dla G12 i G12w
 
 
 def test_zbuduj_konfiguracje_nadpisania():
