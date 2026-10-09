@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  kluczRenderu, komorkaCeny, kwota, nazwaOkresu, nazwaStrefy, odpowiedz, przesun, tekst, tekstOstrzezenia, udzialy, wierszeTabeli, zbierzDane,
+  htmlOdpowiedzi, htmlTabeli, kluczRenderu, komorkaCeny, kwota, nazwaOkresu, nazwaStrefy, odpowiedz, przesun, tekst, tekstOstrzezenia, udzialy, wierszeTabeli, zbierzDane,
 } from "../../custom_components/porownanie_taryf/frontend/panel.js";
 
 const NBSP = "\u00a0";
@@ -328,4 +328,61 @@ test("tabela: oferta bez obecnej taryfy (null w kolumnie obecnej) i wiersz bez �
   assert.deepEqual(t.wiersze.map((w) => w.etykieta), ["A Aa", "B Bb", "Pstryk"]);
   const sam = tabela(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12w", 700)]));
   assert.equal(sam.najBez, null);   // w kolumnie obecnej taryfy jest tylko obecna umowa
+});
+
+// --- HTML tabeli i linijki odpowiedzi ---
+
+const htmlT = (h) => htmlTabeli(tabela(h));
+test("HTML tabeli: nagłówki — obecna taryfa z podpisem, pozostałe z dymkiem o wniosku, ostatnia kolumna „cena stała”", () => {
+  const html = htmlT(hassGlowny());
+  assert.match(html, /<th scope="col" class="obecna">G12<small>obecna<\/small><\/th>/);
+  assert.match(html, /<th scope="col" title="Wymaga zmiany taryfy u operatora \(wniosek\)">G11<\/th>/);
+  assert.equal((html.match(/title="Wymaga zmiany taryfy/g) ?? []).length, 4);
+  assert.match(html, /<th scope="col">cena stała<\/th><\/tr><\/thead>/);
+  assert.match(html, /<th><span class="ukryte">Oferta<\/span><\/th>/);
+});
+test("HTML tabeli: wiersze w kolejności, znaczniki jako pigułki z dymkiem, cena stała lub „—”", () => {
+  const html = htmlT(hassGlowny());
+  const nazwy = [...html.matchAll(/<tr><th scope="row">([^<]*)/g)].map((m) => m[1]);
+  assert.deepEqual(nazwy, ["Enea EneoPewność", "Enea prawo wyboru", "Pstryk", "Tauron Twój Extra Elektryk 24H", "Własny cennik"]);
+  assert.match(html, /Enea EneoPewność<span class="znacznik" title="Cena stała 36 miesięcy\.">cena stała<\/span>/);
+  assert.match(html, /Pstryk<span class="znacznik" title="Tarcza Pstryk \(−100,00 zł w tym okresie\) jest już odjęta od kosztu\.">Tarcza −100 zł<\/span>/);
+  assert.match(html, /<td class="stala">36 mies\.<\/td>/);
+  assert.match(html, /<td class="stala">do 09\.2027<\/td>/);
+  assert.match(html, /<td class="stala">—<\/td>/);
+});
+test("HTML tabeli: komórki — kwota ze znakiem, kolor ∝ różnicy, „≈”, „teraz”, „—”, title z pełnym kosztem", () => {
+  const html = htmlT(hassGlowny());
+  assert.match(html, /<td class="taniej kol-obecna najtansza-bez" style="--a:40%" title="Enea EneoPewność \+ G12: 760,00 zł">−40,00 zł<\/td>/);
+  assert.match(html, /<td class="taniej najtansza" style="--a:45%" title="Enea EneoPewność \+ G13active: 750,00 zł">−50,00 zł<\/td>/);
+  assert.match(html, /<td class="drozej" style="--a:70%" title="Enea EneoPewność \+ G11: 900,00 zł">\+100,00 zł<\/td>/);
+  assert.match(html, /<td class="rowne" title="Enea prawo wyboru \+ G12w: 805,00 zł">≈ \+5,00 zł<\/td>/);
+  assert.match(html, /<td class="rowne kol-obecna" title="Pstryk \+ G12: 800,00 zł"><i class="teraz">teraz<\/i>0,00 zł<\/td>/);
+  assert.match(html, /<td class="brak">—<\/td>/);
+});
+test("HTML tabeli: nazwy ofert, znaczniki, dymki i cena stała z atrybutów są escapowane", () => {
+  const zla = komp("x", "<b>S</b>", "<i>O</i>", "G12", 700, { cena_do: "<u>1</u>", znaczniki: [["<s>z</s>", "\"><img onerror=1>"]] });
+  const html = htmlT(hassTabela([pstryk(G12), zla]));
+  assert.doesNotMatch(html, /<img|<b>S|<i>O|<u>1|<s>z/);
+  assert.ok(html.includes("&#60;b&#62;S&#60;/b&#62; &#60;i&#62;O&#60;/i&#62;"));
+  assert.ok(html.includes('title="&#34;&#62;&#60;img onerror=1&#62;">&#60;s&#62;z&#60;/s&#62;'));
+});
+test("HTML odpowiedzi: cztery przypadki ze spec §4", () => {
+  const html = (h) => htmlOdpowiedzi(odpowiedz(zbierzDane(h)));
+  assert.equal(html(hassGlowny()),
+    '<div class="odpowiedz"><div class="glowna">Najtaniej: <b>Enea EneoPewność + G12</b> — <b class="taniej">40,00 zł mniej</b> niż teraz <span class="przygaszone">(bez zmiany taryfy)</span></div>'
+    + '<div class="obok">ze zmianą na G13active: −50,00 zł</div><div class="pod">760,00 zł zamiast 800,00 zł (Pstryk + G12)</div></div>');
+  const wGlownej = html(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12", 700), komp("a", "A", "Aa", "G12w", 790)]));
+  assert.match(wGlownej, /Najtaniej: <b>A Aa \+ G12<\/b> — <b class="taniej">100,00 zł mniej<\/b> niż teraz<\/div><div class="pod">/);
+  const zmiana = html(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12", 799), komp("a", "A", "Aa", "G12w", 700)]));
+  assert.match(zmiana, /<b class="taniej">100,00 zł mniej<\/b> <span class="znacznik ostrzezenie" title="Wymaga zmiany taryfy u operatora \(wniosek\)">zmiana taryfy<\/span><\/div>/);
+  assert.doesNotMatch(zmiana, /niż teraz/);
+  assert.equal(html(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12", 795)])),
+    '<div class="odpowiedz"><div class="glowna">Twoja umowa jest najtańsza <span class="przygaszone">(różnice poniżej 1%)</span></div><div class="pod">800,00 zł (Pstryk + G12)</div></div>');
+  assert.equal(htmlOdpowiedzi(null), "");
+});
+test("HTML odpowiedzi: nazwa oferty z atrybutów jest escapowana", () => {
+  const html = htmlOdpowiedzi(odpowiedz(zbierzDane(hassTabela([pstryk(G12), komp("x", "<b>S</b>", "O", "G12", 700)]))));
+  assert.doesNotMatch(html, /<b>S/);
+  assert.ok(html.includes("&#60;b&#62;S&#60;/b&#62; O + G12"));
 });

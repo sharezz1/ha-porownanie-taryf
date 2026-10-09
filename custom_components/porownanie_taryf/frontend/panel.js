@@ -438,6 +438,39 @@ export function htmlCenSekcji2(dane, widok, ui) {
   return details("s2", ui, energia + oplaty);
 }
 
+const ZMIANA_TARYFY = "Wymaga zmiany taryfy u operatora (wniosek)";
+const znacznik = ([etykieta, dymek]) => `<span class="znacznik" title="${esc(dymek)}">${esc(etykieta)}</span>`;
+
+// linijka odpowiedzi nad tabelą (spec §4); `odp` z odpowiedz(dane)
+export function htmlOdpowiedzi(odp) {
+  if (!odp) return "";
+  const pod = `<div class="pod">${esc(odp.pod)}</div>`;
+  if (odp.typ === "obecna") return `<div class="odpowiedz"><div class="glowna">Twoja umowa jest najtańsza <span class="przygaszone">(różnice poniżej 1%)</span></div>${pod}</div>`;
+  const dopisek = odp.bezZmiany ? ` <span class="przygaszone">(bez zmiany taryfy)</span>`
+    : odp.zmianaTaryfy ? ` <span class="znacznik ostrzezenie" title="${ZMIANA_TARYFY}">zmiana taryfy</span>` : "";
+  return `<div class="odpowiedz"><div class="glowna">Najtaniej: <b>${esc(odp.oferta)} + ${esc(odp.taryfa)}</b> — <b class="taniej">${kwota(odp.mniej)} mniej</b>${odp.zmianaTaryfy ? "" : " niż teraz"}${dopisek}</div>`
+    + `${odp.obok ? `<div class="obok">${esc(odp.obok)}</div>` : ""}${pod}</div>`;
+}
+
+// tabela oferta × taryfa (spec §3); `t` z wierszeTabeli(dane)
+export function htmlTabeli(t) {
+  const glowa = t.kolumny.map((k) => (k === t.obecnaTaryfa
+    ? `<th scope="col" class="obecna">${esc(k)}<small>obecna</small></th>`
+    : `<th scope="col" title="${ZMIANA_TARYFY}">${esc(k)}</th>`)).join("");
+  const komorka = (c, k) => {
+    const kol = k === t.obecnaTaryfa ? " kol-obecna" : "";
+    if (!c) return `<td class="brak${kol}">—</td>`;
+    const klasy = `${c.klasa}${kol}${c.najtansza ? " najtansza" : ""}${c.najtanszaBez ? " najtansza-bez" : ""}`;
+    const styl = c.klasa === "rowne" ? "" : ` style="--a:${Math.round(20 + 50 * c.sila)}%"`; // nasycenie koloru 20–70%
+    const tekst = c.obecny ? `<i class="teraz">teraz</i>${kwota(c.roznica, true)}` : `${c.klasa === "rowne" ? "≈ " : ""}${kwota(c.roznica, true)}`;
+    return `<td class="${klasy}"${styl} title="${esc(`${c.wiersz} + ${c.taryfa}: ${kwota(c.razem)}`)}">${tekst}</td>`;
+  };
+  const wiersz = (w) => `<tr><th scope="row">${esc(w.etykieta)}${w.znaczniki.map(znacznik).join("")}</th>`
+    + `${t.kolumny.map((k) => komorka(w.komorki[k], k)).join("")}<td class="stala">${w.cenaDo ? esc(w.cenaDo) : "—"}</td></tr>`;
+  return `<div class="kolory"><table><thead><tr><th><span class="ukryte">Oferta</span></th>${glowa}<th scope="col">cena stała</th></tr></thead>`
+    + `<tbody>${t.wiersze.map(wiersz).join("")}</tbody></table></div>`;
+}
+
 const STYL = `
 .ukryte { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 :host { display: block; height: 100%; overflow: hidden; background: var(--primary-background-color); color: var(--primary-text-color); }
