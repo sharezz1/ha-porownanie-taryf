@@ -389,7 +389,7 @@ summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset:
 .kolory { overflow-x: auto; }
 .kolory table { width: 100%; border-collapse: separate; border-spacing: 3px; font-variant-numeric: tabular-nums; }
 .kolory th { font-weight: 500; font-size: 12px; color: var(--secondary-text-color); text-align: center; padding: 4px; white-space: nowrap; }
-.kolory th small { display: block; font-size: 10px; color: var(--primary-color); }
+.kolory th small { display: block; font-size: 10px; color: color-mix(in srgb, var(--primary-color) 60%, var(--primary-text-color)); }
 .kolory th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--primary-background-color); text-align: left; font-size: 14px;
   color: var(--primary-text-color); padding: 6px 8px; min-width: 14em; white-space: normal; }
 .kolory td { position: relative; text-align: center; padding: 10px 6px; border-radius: 6px; font-size: 14px; white-space: nowrap;
@@ -402,7 +402,7 @@ summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset:
 .kolory .kol-obecna { border-left: 2px solid var(--primary-color); border-right: 2px solid var(--primary-color); }
 .kolory td.najtansza { outline: 3px solid var(--primary-text-color); outline-offset: -1px; font-weight: 700; }
 .kolory td.najtansza-bez { outline: 2px dashed var(--primary-text-color); outline-offset: -1px; font-weight: 600; }
-.teraz { display: block; line-height: 1; margin-bottom: 2px; font-size: 9px; font-style: normal; font-weight: 700; text-transform: uppercase; color: var(--primary-color); }
+.teraz { display: block; line-height: 1; margin-bottom: 2px; font-size: 9px; font-style: normal; font-weight: 700; text-transform: uppercase; color: color-mix(in srgb, var(--primary-color) 60%, var(--primary-text-color)); }
 .statystyki { margin: 0; font-size: 13px; color: var(--secondary-text-color); }
 .statystyki b { color: var(--primary-text-color); font-weight: 600; }
 .ceny { margin: 12px 0 0; }
