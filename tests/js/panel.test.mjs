@@ -152,7 +152,7 @@ test("nowe atrybuty: cena_do, znaczniki, taryfy; starsza integracja bez nich →
   const stare = zbierzDane(hassWrzesien());
   assert.equal(stare.taryfy, null);
   assert.deepEqual(stare.ranking.map((s) => [s.cenaDo, s.znaczniki]), [["", []], ["", []], ["", []]]);
-  const zle = zbierzDane(hassTabela([pstryk(G12), komp("x", "X", "Y", "G12", 700, { cena_do: 5, znaczniki: [null, "a", ["ok", "dymek"]] })]));
+  const zle = zbierzDane(hassTabela([pstryk(G12), komp("x", "X", "Y", "G12", 700, { cena_do: 5, znaczniki: [null, "a", ["tylko etykieta"], ["ok", "dymek"]] })]));
   assert.deepEqual([zle.kompleksowa[0].cenaDo, zle.kompleksowa[0].znaczniki], ["", [["ok", "dymek"]]]);
 });
 
@@ -290,7 +290,29 @@ test("odpowiedź: oszczędność tylko po zmianie taryfy, w obecnej taryfie niei
 });
 test("odpowiedź: wszystkie różnice poniżej 1% → „Twoja umowa jest najtańsza”", () => {
   const o = odpowiedz(zbierzDane(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12", 795), komp("a", "A", "Aa", "G12w", 805)])));
-  assert.deepEqual(o, { typ: "obecna", pod: "800,00 zł (Pstryk + G12)" });
+  assert.deepEqual(o, { typ: "obecna", blisko: true, pod: "800,00 zł (Pstryk + G12)" });
+});
+test("odpowiedź: wszystkie alternatywy droższe → „najtańsza” bez dopisku o różnicach poniżej 1%", () => {
+  const dane = zbierzDane(hassWrzesien());
+  assert.deepEqual(odpowiedz(dane), { typ: "obecna", blisko: false, pod: "800,00 zł (Pstryk + G12)" });
+  assert.equal(htmlOdpowiedzi(odpowiedz(dane)),
+    '<div class="odpowiedz"><div class="glowna">Twoja umowa jest najtańsza</div><div class="pod">800,00 zł (Pstryk + G12)</div></div>');
+});
+test("odpowiedź: najtańsza ogółem i najtańsza bez zmiany taryfy w różnych ofertach → obok podaje ofertę i taryfę", () => {
+  const o = odpowiedz(zbierzDane(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12", 760), komp("b", "B", "Bb", "G13active", 700)])));
+  assert.equal(o.obok, "ze zmianą na B Bb + G13active: −100,00 zł");
+  assert.equal(o.oferta, "A Aa");
+});
+test("odpowiedź: remis najtańszej ogółem z komórką w obecnej taryfie → wygrywa obecna taryfa, bez „ze zmianą na”", () => {
+  const o = odpowiedz(zbierzDane(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12w", 700), komp("b", "B", "Bb", "G12", 700)])));
+  assert.equal(o.taryfa, "G12");
+  assert.equal(o.obok, "");
+  assert.equal(o.bezZmiany, false);
+});
+test("odpowiedź: granica progu bez błędu zmiennoprzecinkowego — −0,70 zł z 70 to już oszczędność", () => {
+  const t = tabela(hassTabela([pstryk(["pstryk_G12", "Pstryk + G12", 70, 50, 20, 0, true]), komp("a", "A", "Aa", "G12w", 69.3)]));
+  assert.equal(komorka(t, "A Aa", "G12w").klasa, "taniej");
+  assert.equal(komorka(t, "A Aa", "G12w").najtansza, true);
 });
 test("odpowiedź: granica progu — −8,00 zł z 800 to już oszczędność, −7,99 jeszcze nie", () => {
   assert.equal(odpowiedz(zbierzDane(hassTabela([pstryk(G12), komp("a", "A", "Aa", "G12w", 792)]))).typ, "najtaniej");

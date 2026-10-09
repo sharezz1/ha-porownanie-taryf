@@ -143,8 +143,6 @@ Obok scenariuszy Pstryk integracja ma wbudowany katalog ofert kompleksowych (**E
 
 **0.6.1:** poprawka — akcyza PGE i własnego cennika wchodzi do podstawy VAT.
 
-**0.7.0 (zmiana łamiąca):** panel to teraz jedna tabela oferta × taryfa (patrz „Panel”). Encja `select` **Sprzedawca** została usunięta — po aktualizacji jej wpis znika z rejestru, więc automatyzacje, szablony i karty odwołujące się do `select.porownanie_taryf_sprzedawca` trzeba poprawić. Sensory mają nowe atrybuty `cena_do`, `znaczniki` i `taryfy`; liczby i pozostałe encje bez zmian.
-
 **1. „Prawo wyboru” (`enea_2026_wybor`)** — taryfa dla klienta, który zmienił sprzedawcę i wraca do Enei, 2026: opłata handlowa 10,49 zł/mc netto.
 
 | Taryfa | Ceny energii (zł/kWh netto, z akcyzą) |
@@ -231,12 +229,14 @@ Integracja sama dodaje do paska bocznego HA panel **Porównanie taryf** (ikona w
 
 - **Pasek okresu:** Dzień / Miesiąc / Rok / Zakres, strzałki ←/→ i pola dat dla zakresu.
 - **Ostrzeżenia** (np. niepełne dane) — krótka lista nad tabelą.
-- **Linijka odpowiedzi:** najtańsza oferta z taryfą i o ile złotych mniej niż obecna umowa. Gdy oszczędność wymaga zmiany taryfy u operatora, panel pokazuje najlepszą opcję bez zmiany taryfy, a obok wynik po zmianie. Gdy wszystkie różnice są poniżej 1% kosztu obecnej umowy, pisze, że Twoja umowa jest najtańsza.
+- **Linijka odpowiedzi:** najtańsza oferta z taryfą i o ile złotych mniej niż obecna umowa. Gdy oszczędność wymaga zmiany taryfy u operatora, panel pokazuje najlepszą opcję bez zmiany taryfy, a obok wynik po zmianie. Opcja bez zmiany taryfy jest pokazana jako pierwsza tylko wtedy, gdy jej własna oszczędność wynosi co najmniej 1%. Gdy żadna opcja nie jest tańsza o co najmniej 1% — „Twoja umowa jest najtańsza” (z dopiskiem „różnice poniżej 1%”, gdy coś jest blisko).
 - **Tabela oferta × taryfa:** wiersz to oferta (Pstryk, oferty z katalogu, własny cennik), kolumna to taryfa dystrybucyjna. Komórka pokazuje różnicę względem obecnej umowy w zł: zielona — taniej, czerwona — drożej (im mocniejszy kolor, tym większa różnica), szara z „≈” — różnica poniżej 1%. Obecna umowa ma podpis „teraz”, najtańsza komórka gruby obrys, najtańsza bez zmiany taryfy — obrys przerywany. Najedź na komórkę, żeby zobaczyć pełny koszt okresu. Kolumna „cena stała” pokazuje, do kiedy oferta gwarantuje cenę, a pigułki przy nazwie oferty (np. „Tarcza −134 zł”, „realnie taniej”) mają dymki z wyjaśnieniem. Na telefonie tabela przewija się w poziomie, a nazwy ofert zostają na miejscu.
 - **Linijka statystyk:** zużycie, udział tanich godzin i Tarcza Pstryk (gdy rabat jest większy od zera).
 - **Zwinięte sekcje „Ceny i stawki” i „Uwagi do ofert”:** w pierwszej każda liczba jest podana brutto (duży druk), a pod nią netto (mały druk) — stawki dystrybucji na strefę, opłaty stałe, średnia cena energii Pstryk przed i po Tarczy oraz ceny energii i opłaty handlowe ofert; w drugiej warunki i ważność cenników.
 
 Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel pojawia się po dodaniu integracji i znika razem z ostatnim wpisem. Żeby go ukryć, zmień kolejność lub widoczność pozycji w pasku bocznym (przytrzymaj nagłówek paska bocznego lub wybierz „Edytuj pasek boczny”).
+
+**0.7.0 (zmiana łamiąca):** panel to teraz jedna tabela oferta × taryfa (patrz „Panel”). Encja `select` **Sprzedawca** została usunięta — po aktualizacji jej wpis znika z rejestru, więc automatyzacje, szablony i karty odwołujące się do `select.porownanie_taryf_sprzedawca` (polski HA) lub `select.porownanie_taryf_seller` (angielski HA) trzeba poprawić. Sensory mają nowe atrybuty `cena_do`, `znaczniki` i `taryfy`; liczby i pozostałe encje bez zmian.
 
 ### Kody ostrzeżeń
 
@@ -408,8 +408,6 @@ Besides the Pstryk scenarios the integration has a built-in catalogue of compreh
 
 **0.6.1:** fix — excise duty for PGE and the own price list is part of the VAT base.
 
-**0.7.0 (breaking change):** the panel is now a single offer × tariff table (see "Panel"). The **Sprzedawca** (seller) `select` entity was removed — after the update its registry entry disappears, so automations, templates and cards that referenced `select.porownanie_taryf_sprzedawca` must be fixed. Sensors have new attributes `cena_do`, `znaczniki` and `taryfy`; the figures and the other entities are unchanged.
-
 **1. "Prawo wyboru" ("right to choose", `enea_2026_wybor`)** — the tariff for a customer who switched seller and returns to Enea, 2026: trading fee 10.49 PLN/month net.
 
 | Tariff | Energy prices (PLN/kWh net, excise included) |
@@ -496,12 +494,14 @@ The integration adds a **Porównanie taryf** panel (always in Polish, as Pstryk 
 
 - **Period bar:** Day / Month / Year / Range, ←/→ arrows and the date fields for a range.
 - **Warnings** (e.g. incomplete data) — a short list above the table.
-- **Answer line:** the cheapest offer with its tariff and how many zloty less than the current contract. When the saving requires changing the tariff at the grid operator, the panel shows the best option without a tariff change and, next to it, the result after the change. When all differences are below 1% of the current contract's cost, it says your contract is the cheapest.
+- **Answer line:** the cheapest offer with its tariff and how many zloty less than the current contract. When the saving requires changing the tariff at the grid operator, the panel shows the best option without a tariff change and, next to it, the result after the change. The option without a tariff change is shown first only when its own saving is at least 1%. When no option is at least 1% cheaper, it says "Twoja umowa jest najtańsza" (your contract is the cheapest), with a "różnice poniżej 1%" (differences below 1%) note when something is close.
 - **Offer × tariff table:** a row is an offer (Pstryk, catalogue offers, your own price list), a column is a distribution tariff. A cell shows the difference against the current contract in PLN: green — cheaper, red — more expensive (the stronger the colour, the bigger the difference), grey with "≈" — a difference below 1%. The current contract is labelled "teraz" (now), the cheapest cell has a thick outline, the cheapest one without a tariff change a dashed outline. Hover a cell for the full cost of the period. The "cena stała" (fixed price) column shows until when the offer guarantees its price, and the pills next to an offer name (e.g. "Tarcza −134 zł", "realnie taniej") have explanatory tooltips. On a phone the table scrolls horizontally while the offer names stay in place.
 - **Statistics line:** consumption, share of cheap hours and Pstryk Shield (when the rebate is above zero).
 - **Collapsed "Ceny i stawki" (prices and rates) and "Uwagi do ofert" (notes on offers) sections:** in the first every number is shown gross (large) with the net value below it (small) — distribution rates per zone, fixed fees, Pstryk's average energy price before and after the Shield, and the offers' energy prices and trading fees; in the second the conditions and price list validity.
 
 It reads everything from the integration's entities, so there is nothing to configure. The panel appears once the integration is added and disappears with the last config entry. To hide it, edit the sidebar (press and hold the sidebar title, or choose "Edit sidebar") and turn the item off.
+
+**0.7.0 (breaking change):** the panel is now a single offer × tariff table (see "Panel"). The **Sprzedawca** (seller) `select` entity was removed — after the update its registry entry disappears, so automations, templates and cards that referenced `select.porownanie_taryf_seller` (English HA) or `select.porownanie_taryf_sprzedawca` (Polish HA) must be fixed. Sensors have new attributes `cena_do`, `znaczniki` and `taryfy`; the figures and the other entities are unchanged.
 
 ### Warning codes
 

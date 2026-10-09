@@ -1,4 +1,4 @@
-// Panel „Porównanie taryf” (spec §7a): waniliowy web component, bez bibliotek, bez kroku budowania, bez zasobów z sieci.
+// Panel „Porównanie taryf” (spec v0.7 §2–§6): waniliowy web component, bez bibliotek, bez kroku budowania, bez zasobów z sieci.
 // Czyste funkcje są eksportowane dla testów (node --test tests/js/*.test.mjs); element definiowany tylko w przeglądarce.
 
 const DOMENA = "porownanie_taryf";
@@ -43,7 +43,7 @@ export function zbierzDane(hass) {
       },
       uwagi: Array.isArray(a.uwagi) ? a.uwagi : [],
       cenaDo: typeof a.cena_do === "string" ? a.cena_do : "", // "" = bez gwarancji stałości ceny
-      znaczniki: Array.isArray(a.znaczniki) ? a.znaczniki.filter(Array.isArray) : [], // [[etykieta, dymek], …]
+      znaczniki: Array.isArray(a.znaczniki) ? a.znaczniki.filter((z) => Array.isArray(z) && z.length >= 2) : [], // [[etykieta, dymek], …]
       razem: liczba(s),
       sprzedazPo: a.sprzedaz_po ?? 0,
       dystrybucja: a.dystrybucja ?? 0,
@@ -121,7 +121,7 @@ export function wierszeTabeli(dane) {
   const scenariusze = [...dane.ranking, ...dane.kompleksowa];
   const o = dane.obecny;
   const kolumny = kolumnyTaryf(dane);
-  const prog = PROG * o.razem;
+  const prog = zaokr(PROG * o.razem);
   const wiersze = new Map();
   for (const s of scenariusze) {
     const klucz = s.grupa === "pstryk" ? "pstryk" : s.idOferty || JSON.stringify([s.sprzedawca, s.oferta]);
@@ -146,8 +146,8 @@ export function wierszeTabeli(dane) {
   for (const w of wiersze.values()) w.min = Math.min(...Object.values(w.komorki).filter(Boolean).map((c) => c.roznica));
   const posortowane = [...wiersze.values()].sort((a, b) => a.min - b.min || b.obecny - a.obecny || a.etykieta.localeCompare(b.etykieta, "pl"));
   const najtansza = (lista) => lista.reduce((n, c) => (!n || c.roznica < n.roznica ? c : n), null);
-  const naj = najtansza(posortowane.flatMap((w) => Object.values(w.komorki).filter((c) => c && !c.obecny)));
   const najBez = najtansza(posortowane.map((w) => w.komorki[o.taryfa]).filter((c) => c && !c.obecny));
+  const naj = najtansza([najBez, ...posortowane.flatMap((w) => Object.values(w.komorki).filter((c) => c && !c.obecny))].filter(Boolean)); // remis: komórka w obecnej taryfie
   const istotna = (c) => c && c.roznica < 0 && c.roznica <= -prog; // oszczędność co najmniej 1% (prog 0 przy zerowych kosztach: tylko ujemna)
   if (istotna(naj)) naj.najtansza = true;
   if (istotna(najBez) && najBez !== naj) najBez.najtanszaBez = true;
@@ -157,16 +157,16 @@ export function wierszeTabeli(dane) {
 // linijka odpowiedzi (spec §4); null = brak obecnej umowy lub wyniku (panel pokazuje wtedy komunikat)
 export function odpowiedz(dane) {
   if (!mozna(dane)) return null;
-  const { naj, najBez } = wierszeTabeli(dane);
+  const { naj, najBez, prog } = wierszeTabeli(dane);
   const o = dane.obecny;
-  if (!naj?.najtansza) return { typ: "obecna", pod: `${kwota(o.razem)} (${o.etykieta})` };
+  if (!naj?.najtansza) return { typ: "obecna", blisko: !!naj && Math.abs(naj.roznica) < prog, pod: `${kwota(o.razem)} (${o.etykieta})` };
   const wymaga = naj.taryfa !== o.taryfa;
   const bez = wymaga && !!najBez?.najtanszaBez;
   const cel = bez ? najBez : naj;
   return {
     typ: "najtaniej", oferta: cel.wiersz, taryfa: cel.taryfa, mniej: zaokr(-cel.roznica),
     bezZmiany: bez, zmianaTaryfy: wymaga && !bez,
-    obok: bez ? `ze zmianą na ${naj.taryfa}: ${kwota(naj.roznica, true)}` : "",
+    obok: bez ? `ze zmianą na ${naj.wiersz === cel.wiersz ? "" : `${naj.wiersz} + `}${naj.taryfa}: ${kwota(naj.roznica, true)}` : "",
     pod: `${kwota(cel.razem)} zamiast ${kwota(o.razem)} (${o.etykieta})`,
   };
 }
@@ -313,7 +313,7 @@ const znacznik = ([etykieta, dymek]) => `<span class="znacznik" title="${esc(dym
 export function htmlOdpowiedzi(odp) {
   if (!odp) return "";
   const pod = `<div class="pod">${esc(odp.pod)}</div>`;
-  if (odp.typ === "obecna") return `<div class="odpowiedz"><div class="glowna">Twoja umowa jest najtańsza <span class="przygaszone">(różnice poniżej 1%)</span></div>${pod}</div>`;
+  if (odp.typ === "obecna") return `<div class="odpowiedz"><div class="glowna">Twoja umowa jest najtańsza${odp.blisko ? ' <span class="przygaszone">(różnice poniżej 1%)</span>' : ""}</div>${pod}</div>`;
   const dopisek = odp.bezZmiany ? ` <span class="przygaszone">(bez zmiany taryfy)</span>`
     : odp.zmianaTaryfy ? ` <span class="znacznik ostrzezenie" title="${ZMIANA_TARYFY}">zmiana taryfy</span>` : "";
   return `<div class="odpowiedz"><div class="glowna">Najtaniej: <b>${esc(odp.oferta)} + ${esc(odp.taryfa)}</b> — <b class="taniej">${kwota(odp.mniej)} mniej</b>${odp.zmianaTaryfy ? "" : " niż teraz"}${dopisek}</div>`
@@ -390,7 +390,7 @@ summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset:
 .kolory table { width: 100%; border-collapse: separate; border-spacing: 3px; font-variant-numeric: tabular-nums; }
 .kolory th { font-weight: 500; font-size: 12px; color: var(--secondary-text-color); text-align: center; padding: 4px; white-space: nowrap; }
 .kolory th small { display: block; font-size: 10px; color: color-mix(in srgb, var(--primary-color) 60%, var(--primary-text-color)); }
-.kolory th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--primary-background-color); text-align: left; font-size: 14px;
+.kolory th[scope="row"], .kolory thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--primary-background-color); text-align: left; font-size: 14px;
   color: var(--primary-text-color); padding: 6px 8px; min-width: 14em; white-space: normal; }
 .kolory td { position: relative; text-align: center; padding: 10px 6px; border-radius: 6px; font-size: 14px; white-space: nowrap;
   background: var(--card-background-color); color: var(--primary-text-color); }
