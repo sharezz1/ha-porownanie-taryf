@@ -339,6 +339,174 @@ export function htmlTabeli(t) {
     + `<tbody>${t.wiersze.map(wiersz).join("")}</tbody></table></div>`;
 }
 
+// --- Zakładka „Fotowoltaika” (spec v0.8) ---
+export const BOK_M = 60;
+export const PIKSELE = 600;
+const KIERUNKI = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const MIESIACE = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
+
+export function urlOrto(e, n) {
+  const r = BOK_M / 2;
+  return "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/HighResolution?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap"
+    + `&LAYERS=Raster&STYLES=&SRS=EPSG:2180&BBOX=${e - r},${n - r},${e + r},${n + r}&WIDTH=${PIKSELE}&HEIGHT=${PIKSELE}&FORMAT=image/png`;
+}
+
+// x, y w pikselach wyświetlonego obrazu (szer × wys); północ na górze, oś Y ekranu w dół
+export function pikselNaPuwg(x, y, szer, wys, e, n) {
+  const r = BOK_M / 2;
+  return { e: e - r + (x / szer) * BOK_M, n: n + r - (y / wys) * BOK_M };
+}
+
+export const azymutKalenicy = (p1, p2) => ((Math.atan2(p2.e - p1.e, p2.n - p1.n) * 180 / Math.PI) % 180 + 180) % 180;
+export const polacieZKalenicy = (a) => [(Math.round(a) + 90) % 360, (Math.round(a) + 270) % 360]; // zaokrąglenie przed modulo: nigdy 360
+export const kierunekSlownie = (az) => KIERUNKI[Math.round(az / 22.5) % 16];
+export function koniecStrzalki(az, dl) {
+  const r = (az * Math.PI) / 180;
+  return { x: PIKSELE / 2 + Math.sin(r) * dl, y: PIKSELE / 2 - Math.cos(r) * dl };
+}
+
+// ten sam wpis, który pokazuje zakładka „Taryfy”: urządzenie pierwszego (po entity_id) sensora `razem`
+export function entryIdPv(hass) {
+  const razem = Object.values(hass?.entities ?? {})
+    .filter((e) => e.platform === DOMENA && e.translation_key === "razem").map((e) => e.entity_id).sort()[0];
+  if (!razem) return null;
+  return hass.devices?.[hass.entities[razem].device_id]?.config_entries?.[0] ?? null;
+}
+
+const TEKSTY_PV = {
+  brak_konfigu: "Skonfiguruj dach powyżej i zapisz.",
+  za_malo_danych: "Za mało danych zużycia: potrzeba co najmniej 6 pełnych miesięcy (po 2 z lata i zimy).",
+  brak_pogody: "Brak danych pogodowych — spróbuj później.",
+  brak_rce: "Brak cen RCE z PSE — spróbuj później.",
+  not_loaded: "Integracja jest niedostępna (przeładowuje się albo została usunięta).",
+  adres_nieznaleziony: "Nie znaleziono adresu — sprawdź pisownię (miejscowość, ulica numer).",
+  blad: "Nie udało się pobrać wyników — spróbuj później.",
+  unauthorized: "Tę czynność może wykonać tylko administrator Home Assistanta.",
+  invalid_format: "Sprawdź wartości pól — któreś jest poza zakresem.",
+  pv_koszt_szacowany: "Część godzin bez kosztów z Pstryka — uzupełniono średnią miesiąca.",
+  pv_brak_rce: "Dla części godzin brak ceny RCE — eksport z nich wyceniony na 0 zł.",
+};
+export const tekstPv = (kod) => {
+  const [k, arg] = String(kod).split(":");
+  if (k === "pv_miesiac_uzupelniony") {
+    const [, r, m] = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(arg ?? "") ?? [];
+    if (r) return `${MIESIACE[Number(m) - 1]} ${r}: brak pełnych danych — uzupełniono z sąsiednich miesięcy.`;
+    return String(kod); // brak lub zły argument: sam kod zamiast wyjątku i „undefined”
+  }
+  return Object.hasOwn(TEKSTY_PV, k) ? TEKSTY_PV[k] : tekstOstrzezenia(kod);
+};
+
+export function htmlWynikowPv(w) {
+  if (w?.blad) return `<p class="komunikat">${esc(tekstPv(w.blad))}</p>`;
+  if (!w || w.stan !== "ok") {
+    const t = tekstPv(w?.stan ?? "brak_konfigu");
+    return `<p class="komunikat">${esc(w?.stan === "za_malo_danych" ? `${t} Masz: ${w.miesiace_danych}.` : t)}</p>`;
+  }
+  const naj = [...w.warianty].filter((v) => v.zwrot_lata !== null).sort((a, b) => a.zwrot_lata - b.zwrot_lata)[0]?.id;
+  const proc = (x) => `${Math.round(x * 100)}%`;
+  const wiersze = w.warianty.map((v) => {
+    const kwp = v.kwp.map((p) => `${String(p.kwp).replace(".", ",")} kWp ${kierunekSlownie(p.az)}`).join(" + ");
+    const mag = v.magazyn_kwh ? ` + ${v.magazyn_kwh} kWh` : "";
+    return `<tr${v.id === naj ? ' class="najlepszy"' : ""}><th scope="row">${esc(kwp + mag)}</th>
+      <td>${kwota(v.koszt)}</td><td>${Math.round(v.produkcja_kwh)} kWh</td><td>${proc(v.autokonsumpcja)}</td><td>${proc(v.pobor_vs_dzis)}</td>
+      <td${v.oszczednosc_rok <= 0 ? ' class="ujemna"' : ""}>${kwota(v.oszczednosc_rok)}</td>
+      <td>${v.zwrot_lata === null ? "nie zwraca się w 20 l." : `${v.zwrot_lata} l.`}</td><td>${kwota(v.bilans_20_lat, true)}</td></tr>`;
+  }).join("");
+  const ostrz = w.ostrzezenia.length ? `<ul class="ostrzezenia">${w.ostrzezenia.map((o) => `<li>${esc(tekstPv(o))}</li>`).join("")}</ul>` : "";
+  const dep = w.warianty.some((v) => v.depozyt_niewykorzystany > 0) ? "<p>Część depozytu przekracza łączne rachunki za rok — liczona jako 0 zł (konserwatywnie).</p>" : "";
+  const pelne = Object.values(w.pokrycie ?? {}).filter((p) => p >= 0.8).length;
+  const uzup = 12 - pelne;
+  const uzupSlowo = uzup === 1 ? "uzupełniony" : uzup >= 2 && uzup <= 4 ? "uzupełnione" : "uzupełnionych";
+  const miesiaceDanych = `<p class="podstawa">Z ${pelne} miesięcy pomiaru, ${uzup} ${uzupSlowo}.</p>
+    <details data-id="pv-pokrycie"><summary>Pokrycie danymi po miesiącach</summary><ul>${Object.entries(w.pokrycie ?? {})
+      .map(([m, p]) => `<li>${esc(MIESIACE[Number(m.slice(5)) - 1] ?? m.slice(5))} ${esc(m.slice(0, 4))}: ${Math.round(p * 100)}%</li>`).join("")}</ul></details>`;
+  return `${ostrz}<div class="przewin"><table class="pv"><thead><tr><th>Wariant</th><th>Koszt</th><th>Produkcja/rok</th><th>Autokonsumpcja</th>
+    <th>Pobór vs dziś</th><th>Oszczędność/rok</th><th>Zwrot</th><th>Bilans 20 l.</th></tr></thead><tbody>${wiersze}</tbody></table></div>${miesiaceDanych}
+    <p class="podstawa">Obecnie: ${esc(w.baza.etykieta)}, ${kwota(w.baza.razem_rok)}/rok · okres ${esc(w.od)} – ${esc(w.do)}. Bilans 20 l. to scenariusz nominalny (bez dyskontowania).</p>${dep}
+    <details data-id="pv-zalozenia"><summary>Założenia</summary><ul>
+      <li>Nadwyżka do sieci wyceniana godzinowo po cenie rynkowej (RCE z PSE jako przybliżenie ceny RDN Pstryka; ujemna = 0) × 1,23 i trafia do depozytu, który u Pstryka pokrywa energię i opłaty, a nadwyżka (Bonus) także dystrybucję. Bilans liczony łącznie za 12 miesięcy (depozyt nie wygasa); reszta ponad rachunki liczona jako 0 zł.</li>
+      <li>Pobór i produkcja bilansowane w obrębie godziny (dane godzinowe) — rzeczywista autokonsumpcja bywa nieco niższa.</li>
+      <li>Magazyn ładuje się tylko z nadwyżki paneli (bez ładowania z sieci w tanich godzinach).</li>
+      <li>Uzysk bez lokalnego cienia (kominy, drzewa, sąsiedzi) — wpisz zacienienie połaci, jeśli je masz.</li>
+      <li>Pogoda jednego roku — w innym roku uzysk zwykle różni się o ±10%.</li>
+      <li>Opłata mocowa liczona wg obecnego progu zużycia — przy małym poborze po PV może spaść, czego model nie uwzględnia.</li>
+      <li>Wymiana falownika (12. rok, 10% kosztu paneli) i magazynu (15. rok, 70% jego kosztu) wliczona.</li>
+    </ul></details>`;
+}
+
+// pola „Zaawansowane”: etykieta, jednostka, czy wyświetlać i wpisywać w % (w konfiguracji ułamek), opis
+export const ZAAWANSOWANE = {
+  pr: ["PR — współczynnik wydajności", "", false, "ułamek 0,5–1; typowo 0,8–0,9"],
+  degradacja: ["Degradacja paneli", "%/rok", true],
+  sprawnosc_mag: ["Sprawność magazynu", "%", true],
+  dod: ["Głębokość rozładowania", "%", true],
+  zwrot_depozytu: ["Zwrot niewykorzystanego depozytu", "%", true],
+  falownik_rok: ["Rok wymiany falownika", "", false],
+  falownik_pct: ["Koszt wymiany falownika", "% ceny paneli", true],
+  magazyn_rok: ["Rok wymiany magazynu", "", false],
+  magazyn_pct: ["Koszt wymiany magazynu", "% ceny magazynu", true],
+};
+const DOMYSLNE_KOSZTY = { koszt_kwp: 3000, koszt_kwh_mag: 2000 };
+
+export function htmlKartyDachu(s) {
+  const k = s.konfig ?? { polacie: [] };
+  const foto = s.punkt && s.zdjecieBlad
+    ? '<div class="mapa-blad"><p class="blad">Geoportal nie odpowiada — zdjęcia lotniczego nie udało się wczytać.</p><button type="button" data-akcja="zdjecie-ponow">Wczytaj zdjęcie ponownie</button></div>'
+    : s.punkt ? (() => {
+    const strz = (lista, klasa) => (lista ?? []).map((p) => {
+      const c = koniecStrzalki(p.az, 120);
+      return `<line class="${klasa}" x1="${PIKSELE / 2}" y1="${PIKSELE / 2}" x2="${c.x}" y2="${c.y}" marker-end="url(#grot)"/>`;
+    }).join("");
+    const kal = s.klik1 ? `<circle cx="${s.klik1.x}" cy="${s.klik1.y}" r="6" class="klik"/>` : "";
+    return `<div class="mapa${s.tryb === "kalenica" ? " celownik" : ""}">
+      <img src="${urlOrto(s.punkt.e, s.punkt.n)}" alt="Zdjęcie lotnicze działki" width="${PIKSELE}" height="${PIKSELE}" data-akcja="mapa" data-url="${urlOrto(s.punkt.e, s.punkt.n)}">
+      <svg viewBox="0 0 ${PIKSELE} ${PIKSELE}" aria-hidden="true"><defs><marker id="grot" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker></defs>
+        <text x="${PIKSELE / 2}" y="18" class="roza">N</text>${strz(s.nmpt, "nmpt")}${strz(k.polacie.filter((p) => p.panele), "polac")}${kal}</svg></div>`;
+  })() : "";
+  let nmpt = "";
+  if (s.punkt && s.nmpt === null) nmpt = `<p class="info">Szukam połaci w modelu wysokości Geoportalu… (do 6 min)</p>`;
+  else if (s.nmptBlad) nmpt = `<p class="info">Automat nie dał rady (Geoportal nie odpowiada) — wskaż kalenicę na zdjęciu.</p>`;
+  else if (s.nmpt?.length) nmpt = `<p class="info">Propozycja: ${s.nmpt.map((p) => `${kierunekSlownie(p.az)} ${Math.round(p.az)}°, ${Math.round(p.nachylenie)}°`).join("; ")}.
+    Z pomiaru laserowego — może być starszy niż dom. Porównaj ze zdjęciem. <button type="button" data-akcja="zgadza">Zgadza się</button></p>`;
+  else if (s.punkt && s.nmpt) nmpt = `<p class="info">Model wysokości nie pokazuje tu budynku (dane mogą być starsze niż dom) — wskaż kalenicę.</p>`; // undefined = zapisany punkt, nic nie szukano
+  const tryb = s.tryb === "kalenica" ? `<p class="info">${s.klik1 ? "Kliknij drugi koniec kalenicy." : "Kliknij pierwszy koniec kalenicy."}</p>` : "";
+  const polacie = k.polacie.map((p, i) => `<li><label><input type="checkbox" data-pv-polac="${i}" data-pv-pole="panele"${p.panele ? " checked" : ""}>
+    ${kierunekSlownie(p.az)} ${Math.round(p.az)}°</label>
+    <label>nachylenie <input type="number" min="0" max="65" step="1" value="${p.nachylenie}" data-pv-polac="${i}" data-pv-pole="nachylenie">°</label>
+    <label>maks. <input type="number" min="0" max="30" step="0.5" value="${p.kwp_max}" data-pv-polac="${i}" data-pv-pole="kwp_max"> kWp</label>
+    <label>zacienienie <input type="number" min="0" max="50" step="5" value="${Math.round(p.cien * 100)}" data-pv-polac="${i}" data-pv-pole="cien">%</label></li>`).join("");
+  return `<section class="karta"><h2>Dach</h2>
+    <p class="prywatnosc">Adres i współrzędne trafiają do GUGiK/Geoportalu (geokoder, zdjęcie, model wysokości) i Open-Meteo (pogoda). Pstryk i PSE nie dostają adresu ani współrzędnych.</p>
+    <div class="adres"><input type="text" data-pv-adres value="${esc(s.adresWpis ?? k.adres ?? "")}" placeholder="Miejscowość, ulica numer" aria-label="Adres">
+      <button type="button" data-akcja="szukaj"${s.zajety ? " disabled" : ""}>Szukaj</button>
+      <button type="button" data-akcja="z-lokalizacji"${s.zajety ? " disabled" : ""}>Z lokalizacji HA</button>
+      ${k.adres ? '<button type="button" data-akcja="usun-lokalizacje">Usuń lokalizację</button>' : ""}</div>
+    ${s.bladAdresu ? `<p class="blad">${esc(tekstPv(s.bladAdresu))}</p>` : ""}
+    ${foto}${nmpt}${tryb}
+    ${s.punkt && !s.zdjecieBlad ? '<button type="button" data-akcja="kalenica">Wskaż kalenicę</button>' : ""}
+    ${polacie ? `<ul class="polacie">${polacie}</ul>` : ""}
+    ${s.blad ? `<p class="blad">${esc(tekstPv(s.blad))}</p>` : ""}
+    <button type="button" data-akcja="zapisz"${s.punkt && !s.zajety ? "" : " disabled"}>Zapisz</button></section>`;
+}
+
+export function htmlKartyKosztow(k) {
+  const szac = k.koszt_kwp === DOMYSLNE_KOSZTY.koszt_kwp && k.koszt_kwh_mag === DOMYSLNE_KOSZTY.koszt_kwh_mag;
+  const z = k.zaawansowane ?? {};
+  const pole = (nazwa, etyk, v, krok, jedn) => `<label>${etyk} <input type="number" step="${krok}" value="${v}" data-pv-pole="${nazwa}"> ${jedn}</label>`;
+  return `<section class="karta"><h2>Koszty</h2>
+    ${szac ? '<p class="pasek">Koszty instalacji szacunkowe — zwrot zależy od nich najbardziej. Wpisz kwoty ze swojej oferty.</p>' : ""}
+    ${pole("koszt_kwp", "Panele z montażem", k.koszt_kwp, 100, "zł/kWp")}
+    ${pole("koszt_kwh_mag", "Magazyn", k.koszt_kwh_mag, 100, "zł/kWh")}
+    ${pole("wzrost_cen", "Wzrost cen prądu", Math.round(k.wzrost_cen * 100), 1, "%/rok")}
+    <p class="podpowiedz">Typowo 2500–4000 zł/kWp i 1500–2500 zł/kWh (szacunek, październik 2026).</p>
+    <details data-id="pv-zaawansowane"><summary>Zaawansowane</summary>
+      ${Object.entries(ZAAWANSOWANE).map(([n, [etyk, jedn, proc, opis]]) => {
+        const v = proc ? Number((z[n] * 100).toFixed(2)) : z[n];
+        return `<label>${etyk} <input type="number" step="any" value="${v}" data-pv-zaaw="${n}"> ${esc(jedn)}${opis ? ` <small>(${esc(opis)})</small>` : ""}</label>`;
+      }).join("")}
+    </details></section>`;
+}
+
 const STYL = `
 .ukryte { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 :host { display: block; height: 100%; overflow: hidden; background: var(--primary-background-color); color: var(--primary-text-color); }
@@ -359,9 +527,9 @@ h2 { margin: 0; font-weight: 500; }
 
 .okres { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .rodzaje { display: flex; flex-wrap: wrap; gap: 8px; }
-.rodzaje button { min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--divider-color);
+.rodzaje button, .zakladki button { min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--divider-color);
   background: var(--card-background-color); color: var(--primary-text-color); }
-.rodzaje button[aria-pressed="true"] { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color); font-weight: 500; }
+.rodzaje button[aria-pressed="true"], .zakladki button[aria-selected="true"] { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color); font-weight: 500; }
 .nawigacja { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; }
 .nazwa { font-size: 20px; min-width: 9em; text-align: center; }
 .strzalka { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--divider-color);
@@ -419,6 +587,39 @@ summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset:
 .komunikat { text-align: center; padding: 32px 16px; }
 .komunikat h2 { font-size: 20px; margin-bottom: 8px; }
 .komunikat p { margin: 0; }
+
+.zakladki { display: flex; gap: 8px; }
+.tab-taryfy, .tab-pv { display: flex; flex-direction: column; gap: 16px; }
+.tab-pv .karta > * { margin-top: 12px; margin-bottom: 0; }
+.tab-pv .karta > h2 { margin-top: 0; }
+.tab-pv label { display: inline-flex; align-items: center; gap: 6px; margin: 4px 16px 4px 0; }
+.tab-pv input[type="number"], .tab-pv input[type="text"] { font: inherit; min-height: 36px; padding: 0 8px; box-sizing: border-box; border-radius: 8px;
+  border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+.tab-pv input[type="number"] { width: 6em; }
+.tab-pv button[data-akcja] { min-height: 36px; padding: 0 16px; border-radius: 18px; border: 1px solid var(--divider-color);
+  background: var(--card-background-color); color: var(--primary-text-color); }
+.tab-pv button[data-akcja="zapisz"] { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color); }
+.tab-pv button[disabled] { opacity: 0.5; cursor: default; }
+.adres { display: flex; flex-wrap: wrap; gap: 8px; }
+.adres input[type="text"] { flex: 1 1 16em; }
+.prywatnosc, .podpowiedz, .podstawa { font-size: 13px; color: var(--secondary-text-color); }
+.blad { color: var(--error-color); }
+.polacie { list-style: none; padding: 0; }
+.mapa { position: relative; max-width: 600px; }
+.mapa img, .mapa svg { width: 100%; height: auto; display: block; }
+.mapa svg { position: absolute; inset: 0; pointer-events: none; }
+.mapa.celownik img { cursor: crosshair; }
+line.nmpt { stroke: var(--warning-color); stroke-dasharray: 6 4; stroke-width: 3 }
+line.polac { stroke: var(--primary-color); stroke-width: 4 }
+circle.klik { fill: var(--error-color); stroke: #fff; stroke-width: 2px }
+.roza { fill: #fff; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #000; stroke-width: 3px }
+table.pv { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.pv th, table.pv td { padding: 6px 8px; text-align: right; border-top: 1px solid var(--divider-color); }
+table.pv th:first-child { text-align: left; }
+table.pv tr.najlepszy { outline: 2px solid var(--success-color) }
+td.ujemna { color: var(--error-color) }
+.pasek { background: color-mix(in srgb, var(--warning-color) 20%, transparent); padding: 8px; border-radius: 6px }
+.przewin { overflow-x: auto }
 `;
 
 // linijka pod tabelą: zużycie, udział tanich godzin, Tarcza (tylko gdy > 0)
@@ -458,6 +659,14 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
         this.attachShadow({ mode: "open" });
         this.shadowRoot.addEventListener("click", (e) => this._klik(e));
         this.shadowRoot.addEventListener("change", (e) => this._zmiana(e));
+        this.shadowRoot.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && e.target.matches?.("[data-pv-adres]")) this._pvKlik({ dataset: { akcja: "szukaj" } });
+        });
+        this._zakladka = (() => {
+          try { return localStorage.getItem("porownanie_taryf_zakladka") === "pv" ? "pv" : "taryfy"; } catch { return "taryfy"; }
+        })();
+        this._pv = { konfig: null, punkt: null, nmpt: undefined, wyniki: null };
+        this._pvHtml = {};
         this._otwarte = new Set(); // rozwinięte <details> przeżywają odświeżenie wyników
         this.shadowRoot.addEventListener("toggle", (e) => {
           const id = e.target.dataset?.id;
@@ -465,6 +674,14 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
         }, true); // toggle nie bąbelkuje
         // ha-menu-button ładuje się leniwie (po F5 bywa niezdefiniowany): do tego czasu na telefonie działa przycisk zastępczy
         customElements.whenDefined("ha-menu-button").then(() => this._menu());
+      }
+
+      connectedCallback() {
+        if (this._pv.punkt && this._pv.nmpt === null) this._pvSondaStart(); // element wrócił do DOM w trakcie szukania połaci
+      }
+
+      disconnectedCallback() {
+        this._pvSondaStop();
       }
 
       set hass(hass) {
@@ -494,6 +711,7 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
         }
         const dane = (this._dane = zbierzDane(this._hass));
         const $ = (s) => this.shadowRoot.querySelector(s);
+        this._pokazZakladke(this._zakladka); // idempotentne; startuje PV, gdy rejestr encji jest już gotowy
         $(".okres").hidden = !dane;
         if (dane) {
           const { rodzaj, data, koniec } = dane.okres;
@@ -519,6 +737,11 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
         this.shadowRoot.innerHTML = `<style>${STYL}</style>
           <div class="pasek-ha"><ha-menu-button></ha-menu-button><button type="button" class="menu" aria-label="Menu" hidden>☰</button><h1>${T.tytul}</h1></div>
           <div class="przewijanie"><div class="tresc">
+            <div class="zakladki" role="tablist">
+              <button type="button" role="tab" data-zakladka="taryfy">Taryfy</button>
+              <button type="button" role="tab" data-zakladka="pv">Fotowoltaika</button>
+            </div>
+            <div class="tab-taryfy">
             <section class="okres">
               <div class="rodzaje" role="group" aria-label="${T.okres}">
                 ${RODZAJE.map((r, i) => `<button type="button" data-rodzaj="${r}" aria-pressed="false">${T.rodzaje[i]}</button>`).join("")}
@@ -534,6 +757,11 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
               </div>
             </section>
             <div class="wyniki"></div>
+            </div>
+            <div class="tab-pv" hidden>
+              <div class="pv-dach"></div><div class="pv-koszty"></div>
+              <section class="karta"><h2>Wyniki</h2><div class="pv-wyniki"></div></section>
+            </div>
           </div></div>`;
         this._menu();
       }
@@ -541,6 +769,17 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
       _klik(e) {
         if (e.target.closest?.("button.menu")) {
           this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }));
+          return;
+        }
+        const zk = e.target.closest?.("[data-zakladka]");
+        if (zk) {
+          try { localStorage.setItem("porownanie_taryf_zakladka", zk.dataset.zakladka); } catch { /* tryb prywatny: zakładka tylko na tę sesję */ }
+          this._pokazZakladke(zk.dataset.zakladka);
+          return;
+        }
+        const ak = e.target.closest?.("[data-akcja]");
+        if (ak) {
+          this._pvKlik(ak, e);
           return;
         }
         const b = e.target.closest?.("button[data-rodzaj], button[data-krok]");
@@ -561,9 +800,259 @@ if (globalThis.customElements && !customElements.get("porownanie-taryf-panel")) 
       }
 
       _zmiana(e) {
+        const t = e.target;
+        const ds = t.dataset ?? {};
+        const k = this._pv.konfig;
+        if (k && (ds.pvPolac !== undefined || ds.pvPole || ds.pvZaaw)) {
+          const v = Number(t.value);
+          if (t.type !== "checkbox" && (t.value === "" || !Number.isFinite(v))) return; // puste/niepoprawne pole: zostaje poprzednia wartość
+          if (ds.pvPolac !== undefined) {
+            const p = k.polacie[Number(ds.pvPolac)];
+            if (p) p[ds.pvPole] = ds.pvPole === "panele" ? t.checked : ds.pvPole === "cien" ? v / 100 : v;
+          } else if (ds.pvZaaw) k.zaawansowane[ds.pvZaaw] = ZAAWANSOWANE[ds.pvZaaw]?.[2] ? v / 100 : v;
+          else k[ds.pvPole] = ds.pvPole === "wzrost_cen" ? v / 100 : v;
+          return; // zapis dopiero przyciskiem „Zapisz”
+        }
         const pole = e.target.dataset?.pole;
         // Chrome zgłasza change w trakcie wpisywania roku (0002-…, 0020-…): wysyłamy tylko pełny rok 20xx
         if (pole && this._dane && /^20\d\d-\d\d-\d\d$/.test(e.target.value)) this._ustawDate(this._dane.okres.encje[pole], e.target.value);
+      }
+
+      // --- zakładka „Fotowoltaika” ---
+
+      _pokazZakladke(z) {
+        this._zakladka = z;
+        const $ = (s) => this.shadowRoot.querySelector(s);
+        $(".tab-taryfy").hidden = z !== "taryfy";
+        $(".tab-pv").hidden = z !== "pv";
+        for (const b of this.shadowRoot.querySelectorAll("[data-zakladka]")) b.setAttribute("aria-selected", String(b.dataset.zakladka === z));
+        // start dopiero gdy rejestr encji jest wczytany (po F5 pierwszy `hass` bywa pusty), i tylko raz
+        if (z === "pv" && !this._pvStartowano && Object.keys(this._hass?.entities ?? {}).length) {
+          this._pvStartowano = true;
+          this._pvStart();
+        }
+      }
+
+      _pvBlad(err) {
+        const kod = err?.code ?? "blad";
+        if (kod === "not_loaded") this._pv.wyniki = { blad: kod };
+        return kod;
+      }
+
+      async _pvStart() {
+        const pv = this._pv;
+        pv.id = entryIdPv(this._hass);
+        if (!pv.id) {
+          pv.wyniki = { blad: "not_loaded" };
+          this._pvStartowano = false; // integracja jeszcze się ładuje: kolejne wejście w zakładkę / odświeżenie spróbuje ponownie
+          this._pvRender();
+          return;
+        }
+        this._pvRender();
+        try {
+          pv.konfig = await this._hass.callWS({ type: `${DOMENA}/pv/konfig`, entry_id: pv.id });
+        } catch (err) {
+          pv.wyniki = { blad: this._pvBlad(err) };
+          if (pv.wyniki.blad === "not_loaded") this._pvStartowano = false;
+          this._pvRender();
+          return;
+        }
+        if (pv.konfig.e != null) pv.punkt = { e: pv.konfig.e, n: pv.konfig.n }; // zapisany punkt: ortofoto bez nowego szukania
+        await this._pvWyniki();
+      }
+
+      async _pvWyniki() {
+        const pv = this._pv;
+        const tok = (this._pvWTok = (this._pvWTok ?? 0) + 1);
+        pv.wyniki = null; // „Liczę…”
+        this._pvRender();
+        let w;
+        try {
+          w = await this._hass.callWS({ type: `${DOMENA}/pv/wyniki`, entry_id: pv.id });
+        } catch (err) {
+          w = { blad: this._pvBlad(err) };
+        }
+        if (tok !== this._pvWTok) return; // nowsze zapytanie wyprzedziło to
+        pv.wyniki = w;
+        this._pvRender();
+      }
+
+      _pvRender() {
+        const pv = this._pv;
+        const $ = (s) => this.shadowRoot.querySelector(s);
+        const ustaw = (sel, html) => {
+          if (this._pvHtml[sel] === html) return false;
+          this._pvHtml[sel] = html;
+          // asynchroniczne odświeżenie (NMPT, wyniki) nie może zgubić tekstu wpisywanego w polu: zapamiętujemy i odtwarzamy pole z fokusem
+          const aktywne = this.shadowRoot.activeElement;
+          const w = aktywne && $(sel).contains(aktywne) && aktywne.matches?.("input")
+            ? { sel: [...aktywne.attributes].filter((a) => a.name.startsWith("data-")).map((a) => `[${a.name}="${a.value}"]`).join(""),
+              v: aktywne.value, od: aktywne.selectionStart, do: aktywne.selectionEnd } : null;
+          $(sel).innerHTML = html;
+          const pole = w?.sel && $(sel).querySelector(`input${w.sel}`);
+          if (pole) {
+            pole.value = w.v;
+            pole.focus();
+            try { pole.setSelectionRange(w.od, w.do); } catch { /* pola number nie mają zaznaczenia */ }
+          }
+          return true;
+        };
+        // zdjęcie (WMS Geoportalu) nie może się ładować od nowa przy każdym przerysowaniu karty: ten sam węzeł <img> przenosimy do nowego HTML
+        const stary = $(".pv-dach img[data-akcja=mapa]");
+        const dach = ustaw(".pv-dach", pv.konfig ? htmlKartyDachu(pv) : "");
+        ustaw(".pv-koszty", pv.konfig ? htmlKartyKosztow(pv.konfig) : "");
+        ustaw(".pv-wyniki", pv.wyniki === null ? '<p class="komunikat">Liczę wyniki…</p>' : htmlWynikowPv(pv.wyniki));
+        for (const d of this.shadowRoot.querySelectorAll(".tab-pv details[data-id]")) if (this._otwarte.has(d.dataset.id)) d.open = true;
+        const nowy = dach && $(".pv-dach img[data-akcja=mapa]");
+        if (nowy) {
+          if (stary?.dataset.url === nowy.dataset.url) nowy.replaceWith(stary);
+          else this._pvZdjecie(nowy);
+        }
+      }
+
+      // błąd zdjęcia: jedna ponowna próba po 3 s (parametr `_` WMS ignoruje, a omija zbuforowany błąd), potem komunikat zamiast całej mapy (z nakładką SVG)
+      _pvZdjecie(img) {
+        let proba = 0;
+        img.addEventListener("error", () => {
+          if (!img.isConnected) return; // zdjęcie już wymienione na inne
+          if (proba++ === 0) {
+            setTimeout(() => { if (img.isConnected) img.src = `${img.dataset.url}&_=${Date.now()}`; }, 3000);
+            return;
+          }
+          Object.assign(this._pv, { zdjecieBlad: true, tryb: null, klik1: null });
+          this._pvRender();
+        });
+      }
+
+      _pvSondaStop() {
+        clearInterval(this._pvSonda);
+        this._pvSonda = null;
+      }
+
+      // wynik NMPT liczy się w tle po stronie HA (do 6 min): pytamy co 5 s, ale nie dłużej niż 8 min
+      _pvSondaStart() {
+        this._pvSondaStop();
+        const pv = this._pv;
+        const { e, n } = pv.punkt;
+        const start = Date.now();
+        let trwa = false;
+        const id = (this._pvSonda = setInterval(async () => {
+          if (trwa) return;
+          trwa = true;
+          try {
+            const st = await this._hass.callWS({ type: `${DOMENA}/pv/dach_status`, entry_id: pv.id, e, n });
+            if (this._pvSonda !== id) return; // zatrzymana albo zastąpiona nowym szukaniem
+            if (st.polacie_nmpt !== null) {
+              this._pvSondaStop();
+              pv.nmpt = st.polacie_nmpt;
+              pv.nmptBlad = st.nmpt_blad;
+              this._pvRender();
+            } else if (Date.now() - start > 480000) {
+              this._pvSondaStop();
+              pv.nmpt = [];
+              pv.nmptBlad = "niedostepny";
+              this._pvRender();
+            }
+          } catch (err) {
+            if (this._pvSonda !== id) return;
+            this._pvSondaStop();
+            pv.nmpt = [];
+            pv.nmptBlad = this._pvBlad(err);
+            this._pvRender();
+          } finally {
+            trwa = false;
+          }
+        }, 5000));
+      }
+
+      async _pvSzukaj(zapytanie, wpis) {
+        const pv = this._pv;
+        this._pvSondaStop();
+        Object.assign(pv, { bladAdresu: null, adresWpis: wpis, zajety: true });
+        this._pvRender();
+        try {
+          const d = await this._hass.callWS({ type: `${DOMENA}/pv/dach`, entry_id: pv.id, ...zapytanie });
+          pv.konfig = { ...pv.konfig, adres: d.adres, e: d.e, n: d.n, lat: d.lat, lon: d.lon };
+          Object.assign(pv, { adresWpis: undefined, zdjecieBlad: false, punkt: { e: d.e, n: d.n }, nmpt: d.polacie_nmpt, nmptBlad: d.nmpt_blad, tryb: null, klik1: null });
+          if (d.polacie_nmpt === null) this._pvSondaStart();
+        } catch (err) {
+          pv.bladAdresu = this._pvBlad(err);
+        }
+        pv.zajety = false;
+        this._pvRender();
+      }
+
+      async _pvZapisz(konfig) {
+        const pv = this._pv;
+        Object.assign(pv, { blad: null, zajety: true });
+        this._pvRender();
+        try {
+          pv.konfig = await this._hass.callWS({ type: `${DOMENA}/pv/konfig`, entry_id: pv.id, konfig });
+        } catch (err) {
+          pv.blad = this._pvBlad(err);
+          pv.zajety = false;
+          this._pvRender();
+          return;
+        }
+        pv.zajety = false;
+        await this._pvWyniki();
+      }
+
+      _pvKlik(el, ev) {
+        const pv = this._pv;
+        const k = pv.konfig;
+        if (!k || !pv.id || (pv.zajety && el.dataset.akcja !== "mapa")) return;
+        switch (el.dataset.akcja) {
+          case "szukaj": {
+            const wpis = this.shadowRoot.querySelector("[data-pv-adres]")?.value.trim() ?? "";
+            if (wpis.length < 3) {
+              Object.assign(pv, { bladAdresu: "adres_nieznaleziony", adresWpis: wpis });
+              this._pvRender();
+            } else this._pvSzukaj({ adres: wpis }, wpis);
+            break;
+          }
+          case "z-lokalizacji": // jawna akcja użytkownika: dopiero tu współrzędne HA trafiają do GUGiK
+            this._pvSzukaj({ lat: this._hass.config.latitude, lon: this._hass.config.longitude });
+            break;
+          case "zdjecie-ponow":
+            pv.zdjecieBlad = false;
+            this._pvRender();
+            break;
+          case "kalenica":
+            Object.assign(pv, { tryb: "kalenica", klik1: null });
+            this._pvRender();
+            break;
+          case "mapa": {
+            if (pv.tryb !== "kalenica" || !pv.punkt) break;
+            const r = el.getBoundingClientRect();
+            const x = ((ev.clientX - r.left) * PIKSELE) / r.width;
+            const y = ((ev.clientY - r.top) * PIKSELE) / r.height;
+            if (!pv.klik1) pv.klik1 = { x, y };
+            else {
+              const { e, n } = pv.punkt;
+              const a = azymutKalenicy(pikselNaPuwg(pv.klik1.x, pv.klik1.y, PIKSELE, PIKSELE, e, n), pikselNaPuwg(x, y, PIKSELE, PIKSELE, e, n));
+              k.polacie = polacieZKalenicy(a).map((az) => ({ az, nachylenie: 35, kwp_max: 6, cien: 0, panele: true }));
+              Object.assign(pv, { tryb: null, klik1: null });
+            }
+            this._pvRender();
+            break;
+          }
+          case "zgadza": // backend przyjmuje najwyżej 4 połacie i az < 360
+            k.polacie = [...(pv.nmpt ?? [])].sort((a, b) => b.powierzchnia_m2 - a.powierzchnia_m2).slice(0, 4).map((p) => ({
+              az: Math.round(p.az) % 360, nachylenie: Math.min(65, Math.round(p.nachylenie)),
+              kwp_max: Math.min(12, Math.floor(0.18 * p.powierzchnia_m2 * 0.6 * 2) / 2), cien: 0, panele: true,
+            }));
+            this._pvRender();
+            break;
+          case "usun-lokalizacje":
+            this._pvSondaStop();
+            Object.assign(pv, { punkt: null, zdjecieBlad: false, nmpt: undefined, nmptBlad: null, tryb: null, klik1: null, bladAdresu: null, adresWpis: undefined });
+            this._pvZapisz({ ...k, adres: null, e: null, n: null, lat: null, lon: null, polacie: [] });
+            break;
+          case "zapisz":
+            this._pvZapisz(k);
+            break;
+        }
       }
 
       _ustawDate(entity_id, date) {

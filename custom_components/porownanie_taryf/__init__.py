@@ -13,6 +13,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
+from . import pv
 from .const import DOMAIN, PANEL_JS, PANEL_KOMPONENT, PANEL_URL
 from .coordinator import ISSUE_ENDPOINT, TaryfyConfigEntry, TaryfyCoordinator
 
@@ -53,6 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TaryfyConfigEntry) -> bo
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await _zarejestruj_panel(hass)
+    pv.async_setup(hass)
     return True
 
 
@@ -69,4 +71,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: TaryfyConfigEntry) -> b
 async def async_remove_entry(hass: HomeAssistant, entry: TaryfyConfigEntry) -> None:
     """Sprząta po usuniętym wpisie: magazyn godzin (klucz jak w coordinatorze) i Repair o endpoincie."""
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.hourly").async_remove()
+    await pv.async_remove(hass, entry)
     ir.async_delete_issue(hass, DOMAIN, ISSUE_ENDPOINT)

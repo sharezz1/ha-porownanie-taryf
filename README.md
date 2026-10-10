@@ -238,6 +238,48 @@ Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel po
 
 **0.7.0 (zmiana łamiąca):** panel to teraz jedna tabela oferta × taryfa (patrz „Panel”). Encja `select` **Sprzedawca** została usunięta — po aktualizacji jej wpis znika z rejestru, więc automatyzacje, szablony i karty odwołujące się do `select.porownanie_taryf_sprzedawca` (polski HA) lub `select.porownanie_taryf_seller` (angielski HA) trzeba poprawić. Sensory mają nowe atrybuty `cena_do`, `znaczniki` i `taryfy`; liczby i pozostałe encje bez zmian.
 
+### Zakładka „Fotowoltaika”
+
+Integracja zawiera symulator fotowoltaiki (PV) z baterią. Dla scenariusza **Pstryk + obecna taryfa dystrybucyjna** porównuje do 9 wariantów systemu (wielkość paneli: 50% / 75% / 100% dostępnej powierzchni dachu × pojemność baterii: 0 / 5 / 10 kWh) i pokazuje dla każdego wariantu: koszt, roczną produkcję, autokonsumpcję (udział energii zużytej na miejscu), zmianę poboru z sieci, oszczędność roczną, okres zwrotu oraz bilans 20-letni. Scenariusz nominalny uwzględnia: wzrost cen prądu (parametr, domyślnie 3%/rok; dotyczy tylko oszczędności, koszty wymian nie rosną), degradację paneli 0,5%/rok, wymianę falownika w roku 12 (koszt 10% wartości PV) i wymianę baterii w roku 15 (koszt 70% wartości baterii), bez dyskonta.
+
+#### Konfiguracja dachu
+
+1. **Adres:** wpisz adres i kliknij „Szukaj” (albo „Z lokalizacji HA”, żeby użyć współrzędnych skonfigurowanych w HA). Po wyszukaniu pojawi się zdjęcie lotnicze działki.
+2. **Propozycja połaci:** na podstawie modelu wysokości Geoportalu (NMPT) system zaproponuje połacie dachu. Jeśli propozycja jest trafna, kliknij „Zgadza się” — ⚠️ **model może być starszy niż dom**, więc porównaj go ze zdjęciem.
+3. **Wskazanie ręczne:** jeśli propozycja nie trafia, kliknij „Wskaż kalenicę”, a potem oba końce kalenicy na zdjęciu.
+4. **Parametry:** nachylenie (domyślnie 35°), maksymalny kWp na płaszczyznę, procent zacieniowania.
+5. **Koszty systemu:** zł/kWp (domyślnie 3000) i zł/kWh baterii (domyślnie 2000) to szacunki — wpisz kwoty z rzeczywistej oferty. Zwinięta sekcja „Zaawansowane” zawiera m.in. PR — współczynnik wydajności (ułamek 0,5–1), degradację paneli (%/rok), sprawność magazynu i głębokość rozładowania (%), zwrot niewykorzystanego depozytu (%) oraz rok i koszt (% ceny) wymiany falownika i magazynu; wartości procentowe wpisujesz w %.
+6. Kliknij **„Zapisz”**.
+
+Pod tabelą wyników widać etykietę „Z N miesięcy pomiaru, M uzupełnionych” (N — miesiące z pokryciem danymi ≥ 80%, M = 12 − N) i zwiniętą listę pokrycia danymi w każdym miesiącu.
+
+#### Wymagane dane i ograniczenia
+
+- **Zużycie:** co najmniej 6 pełnych miesięcy (minimum 2 w IV–IX, minimum 2 w X–III). Brakujące godziny są uzupełniane z profilu sąsiednich miesięcy i oznaczane ostrzeżeniem `pv_miesiac_uzupelniony:<YYYY-MM>`.
+- **Koszty Pstryk:** gdy brakuje godzin, zastępowane średnią z miesiąca (ostrzeżenie `pv_koszt_szacowany`).
+- **Ceny RCE:** energia oddana do sieci jest wyceniana wg cen RCE z PSE; gdy ceny brakuje, przyjmuje się 0 zł (ostrzeżenie `pv_brak_rce`).
+- **Dach:** obsługiwana jest jedna kalenica (wskazywana kliknięciami). Dystrybucja wg stawek z ustawień integracji (preset Enea Operator 2026).
+
+#### Źródła danych
+
+- **Zużycie i ceny sprzedaży:** Pstryk (już wykorzystywane przez integrację).
+- **Nasłonecznienie:** Open-Meteo Archive (na każdą płaszczyznę dachu).
+- **Rynkowa Cena Energii (RCE):** PSE — przybliżenie godzinowej ceny RDN, po której Pstryk wycenia energię oddaną.
+- **Geocoding, zdjęcia lotnicze, model wysokości (NMPT):** GUGiK / Geoportal.
+
+**Prywatność:** adres i współrzędne trafiają wyłącznie do GUGiK/Geoportalu i Open-Meteo (Pstryk i PSE ich nie dostają). Przycisk „Usuń lokalizację” usuwa je z systemu.
+
+#### Założenia
+
+Rozliczenie **net-billingowe** (wg ustawy OZE i aneksu prosumenckiego Pstryka, 2026; sprawdź warunki u swojego sprzedawcy):
+
+- Energia oddana do sieci jest wyceniana **godzinowo** wg ceny rynkowej (RCE z PSE jako przybliżenie ceny RDN Pstryka); cena ujemna = 0 zł; wartość × 1,23 trafia na depozyt prosumenta.
+- U Pstryka depozyt pokrywa energię i opłaty, a nadwyżka (Bonus Lojalnościowy) także dystrybucję; depozyt nie wygasa, więc bilans liczony jest łącznie za 12 miesięcy (wynik nie zależy od miesiąca startu okna), a reszta ponad łączne rachunki liczona jest jako 0 zł (chyba że ustawisz zwrot niewykorzystanego depozytu).
+- Bateria ładuje się **wyłącznie** z nadwyżki PV.
+- Model bilansuje pobór i produkcję w obrębie godziny, więc liczona autokonsumpcja jest nieco wyższa niż rzeczywista.
+- Pogoda z jednego roku — w innym roku uzysk zwykle różni się o ±10%.
+- Opłata mocowa jest liczona wg obecnego progu zużycia; po montażu PV pobór może spaść do niższego progu, czego model nie uwzględnia.
+
 ### Kody ostrzeżeń
 
 | Kod | Znaczenie |
@@ -247,6 +289,9 @@ Dane bierze z encji integracji, więc niczego nie trzeba konfigurować. Panel po
 | `tarcza_niezweryfikowana:<rok>` | Użyto parametrów Tarczy z presetu, który nie został potwierdzony w regulaminie (obecnie 2027). |
 | `brak_tarczy:<RRRR-MM>` | Dla tego miesiąca żaden preset Tarczy nie obowiązuje; rabat = 0. |
 | `stawki_spoza_roku:<rok>` | Okres zawiera odczyty z roku innego niż rok stawek presetu; użyto stawek presetu. |
+| `pv_miesiac_uzupelniony:<YYYY-MM>` | Miesiąc uzupełniony z profilu sąsiednich miesięcy (brakujące godziny w symulatorze PV). |
+| `pv_koszt_szacowany` | Część godzin miesiąca brakuje w kosztach Pstryk — zastosowana średnia miesiąca. |
+| `pv_brak_rce` | Część godzin bez ceny RCE z PSE — eksport wyceniany 0 zł. |
 
 ### Dane, odświeżanie i błędy
 
@@ -503,6 +548,48 @@ It reads everything from the integration's entities, so there is nothing to conf
 
 **0.7.0 (breaking change):** the panel is now a single offer × tariff table (see "Panel"). The **Sprzedawca** (seller) `select` entity was removed — after the update its registry entry disappears, so automations, templates and cards that referenced `select.porownanie_taryf_seller` (English HA) or `select.porownanie_taryf_sprzedawca` (Polish HA) must be fixed. Sensors have new attributes `cena_do`, `znaczniki` and `taryfy`; the figures and the other entities are unchanged.
 
+### "Photovoltaic" (PV) tab
+
+The integration includes a photovoltaic (PV) simulator with battery storage. For the scenario **Pstryk + your current distribution tariff**, it compares up to 9 system variants (panel size: 50% / 75% / 100% of available roof area × battery capacity: 0 / 5 / 10 kWh) and displays for each: cost, yearly production, self-consumption (share of energy used on-site), change in grid draw, annual savings, payback period and 20-year balance. The nominal scenario includes: electricity price growth (a parameter, 3%/yr by default; it applies to savings only, replacement costs do not grow), panel degradation 0.5%/yr, inverter replacement in year 12 (10% of PV cost) and battery replacement in year 15 (70% of battery cost), without discounting.
+
+#### Roof setup
+
+1. **Address:** type an address and click „Szukaj” (Search), or „Z lokalizacji HA” (From HA location) to use the coordinates configured in HA. After the search, an aerial image of the plot appears.
+2. **Roof plane proposal:** based on Geoportal's height model (NMPT), the system proposes roof planes. If the proposal is correct, click „Zgadza się” (Agree) — ⚠️ **the model may be older than your house**, so compare it with the image.
+3. **Manual indication:** if the proposal is off, click „Wskaż kalenicę” (Mark the ridge), then click both ends of the ridge on the image.
+4. **Parameters:** tilt (default 35°), maximum kWp per plane, shading percentage.
+5. **System costs:** PLN/kWp (default 3000) and PLN/kWh of battery (default 2000) are estimates — enter the amounts from your actual quote. The collapsed „Zaawansowane” (Advanced) section holds, among others, PR — the performance ratio (a fraction, 0.5–1), panel degradation (%/year), storage efficiency and depth of discharge (%), the refund share of the unused deposit (%), and the year and cost (% of the price) of replacing the inverter and the storage; percentage values are entered as %.
+6. Click **„Zapisz” (Save)**.
+
+Below the results table a label „Z N miesięcy pomiaru, M uzupełnionych” (N months measured, M filled in) is shown (N — months with data coverage ≥ 80%, M = 12 − N), plus a collapsed list of the data coverage of each month.
+
+#### Required data and limitations
+
+- **Consumption:** at least 6 full months (minimum 2 in April–September, minimum 2 in October–March). Missing hours are filled from neighbouring months' profiles and flagged with `pv_miesiac_uzupelniony:<YYYY-MM>`.
+- **Pstryk costs:** when hours are missing, the average for that month is used (warning `pv_koszt_szacowany`).
+- **RCE prices:** energy fed into the grid is valued at RCE prices from PSE; when a price is missing, 0 PLN is used (warning `pv_brak_rce`).
+- **Roof:** one ridge is supported (marked by clicks). Distribution rates from your integration settings (Enea Operator 2026 preset).
+
+#### Data sources
+
+- **Consumption and sales prices:** Pstryk (already used by the integration).
+- **Irradiance:** Open-Meteo Archive (per roof plane).
+- **Rynkowa Cena Energii (RCE, market energy price):** PSE — an approximation of the hourly day-ahead (RDN) price at which Pstryk values energy fed into the grid.
+- **Geocoding, aerial images, height model (NMPT):** GUGiK / Geoportal.
+
+**Privacy:** address and coordinates go only to GUGiK/Geoportal and Open-Meteo (Pstryk and PSE do not receive them). The „Usuń lokalizację” (Remove location) button removes them from the system.
+
+#### Assumptions
+
+**Net-billing** settlement (per the Polish Renewable Energy Act and Pstryk's prosumer annex, 2026; check the terms with your own supplier):
+
+- Energy fed into the grid is valued **hourly** at the market price (RCE from PSE as an approximation of Pstryk's RDN price); a negative price = 0 PLN; the value × 1.23 goes into the prosumer deposit.
+- With Pstryk, the deposit covers energy and fees, and the surplus (Pstryk's „Bonus Lojalnościowy”) also covers distribution; the deposit does not expire, so the balance is computed over the whole 12 months (the result does not depend on the month the window starts) and any remainder above the total bills is counted as 0 PLN (unless you set a refund share for the unused deposit).
+- Battery charges **only** from PV surplus.
+- The model balances consumption and production within each hour, so the calculated self-consumption is slightly higher than the real one.
+- Weather from a single year — in another year the yield usually differs by ±10%.
+- The capacity fee is calculated at your current consumption tier; after installing PV your draw may drop to a lower tier, which the model does not account for.
+
 ### Warning codes
 
 | Code | Meaning |
@@ -512,6 +599,9 @@ It reads everything from the integration's entities, so there is nothing to conf
 | `tarcza_niezweryfikowana:<year>` | Shield parameters come from a preset not confirmed in the terms (currently 2027). |
 | `brak_tarczy:<YYYY-MM>` | No Shield preset applies to that month; rebate = 0. |
 | `stawki_spoza_roku:<year>` | The period contains readings from a year other than the preset's rates year; the preset rates were used. |
+| `pv_miesiac_uzupelniony:<YYYY-MM>` | Month filled from neighbouring months' profiles (missing hours in the PV simulator). |
+| `pv_koszt_szacowany` | Part of the month's hours are missing from Pstryk costs — month average was used. |
+| `pv_brak_rce` | Part of the hours have no RCE price from PSE — export valued at 0 PLN. |
 
 ### Data, refresh and errors
 

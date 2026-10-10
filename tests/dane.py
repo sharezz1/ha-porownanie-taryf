@@ -29,3 +29,18 @@ def godziny(
 
 def wrzesien(n: int = 720, **kw) -> list[HourlyReading]:
     return godziny(datetime(2026, 9, 1, tzinfo=TZ), n, **kw)
+
+
+def okno_potem_503(cialo):
+    """side_effect dla aioclient_mock: pierwsze zapytanie 200 z `cialo`, każde następne 503."""
+    from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMockResponse  # noqa: PLC0415
+
+    wywolania = []
+
+    async def efekt(method, url, data):
+        wywolania.append(url)
+        if len(wywolania) == 1:
+            return AiohttpClientMockResponse(method, url, json=cialo)
+        return AiohttpClientMockResponse(method, url, status=503)
+
+    return efekt
